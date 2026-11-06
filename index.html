@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Address Sorter</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+:root{--bg:#F4F6F3;--panel:#fff;--ink:#17231F;--muted:#5F6E68;--line:#DCE3DE;--accent:#0A7A5A;--accent-ink:#fff;--warm:#E8A317;--bad:#B3361F;--soft:#EAF1ED}
+@media (prefers-color-scheme:dark){:root{--bg:#0F1613;--panel:#17211D;--ink:#E8F0EC;--muted:#93A39B;--line:#2A3731;--accent:#3FC79A;--accent-ink:#06130E;--soft:#1E2B26;--bad:#FF8A73}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:15px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif;background:var(--bg);color:var(--ink);display:grid;grid-template-columns:440px 1fr}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+aside{background:var(--panel);border-right:1px solid var(--line);height:100vh;overflow:auto;display:flex;flex-direction:column}
+#map{height:100vh;background:var(--soft)}
+header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 12px}
+h1{font-size:24px;letter-spacing:-.025em;margin:0;font-weight:700}
+h2{font-size:15px;margin:0 0 12px;font-weight:650;display:flex;gap:10px;align-items:center}
+h2 i{font-style:normal;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--ink);color:var(--panel);font-size:12px}
+section{padding:18px 24px;border-top:1px solid var(--line)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:550}
+.btn:hover{background:var(--soft)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s}
+.drop.on,.drop:hover{border-color:var(--accent);background:var(--soft);color:var(--ink)}
+.drop b{color:var(--ink)}
+input[type=text],input[type=password],select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+label.f{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;margin:8px 0;color:var(--muted);font-size:13.5px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:none;padding:8px 14px;cursor:pointer;font-weight:550;color:var(--muted)}
+.seg button.on{background:var(--ink);color:var(--panel)}
+.hint{color:var(--muted);font-size:13px;margin:6px 0 0}
+.bar{height:6px;background:var(--soft);border-radius:3px;overflow:hidden;margin-top:10px}
+.bar div{height:100%;width:0;background:var(--accent);transition:width .2s}
+#list{list-style:none;margin:0;padding:0}
+.it{display:grid;grid-template-columns:34px 1fr auto auto;gap:10px;align-items:center;padding:11px 8px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px}
+.it:hover,.it.sel{background:var(--soft)}
+.it .rk{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);text-align:center}
+.it .nm{font-weight:600}
+.it .ad{font-size:13px;color:var(--muted)}
+.it .ds{text-align:right;font-size:13px;color:var(--muted);white-space:nowrap}
+.it .ds strong{display:block;font-size:15px;color:var(--ink)}
+.it.done{opacity:.5}.it.done .nm{text-decoration:line-through}
+.it.fail .rk{color:var(--bad)}
+.it a{color:var(--accent);font-weight:600;text-decoration:none;font-size:13px}
+.it .go{display:flex;flex-direction:column;gap:4px;align-items:flex-end}
+.it .x{background:none;border:0;color:var(--bad);cursor:pointer;font-weight:600;font-size:13px;padding:0}
+.pin{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;font:700 12px system-ui;border:2px solid #fff;box-shadow:0 1px 5px #0006}
+.pin.start{background:var(--warm);color:#222}.pin.done{background:#8a9892}
+textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--panel);resize:vertical;font:14px/1.5 inherit}
+dialog{border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--ink);max-width:520px;width:92vw;padding:24px}
+dialog::backdrop{background:#0008}
+ol.g{padding-left:20px;margin:10px 0}ol.g li{margin:7px 0}
+a{color:var(--accent)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:10px;display:none;z-index:9999;max-width:90vw}
+.empty{color:var(--muted);padding:6px 0}
+.mapgrid{margin:8px 0 12px;font-size:13px;color:var(--muted)}
+@media (max-width:860px){body{grid-template-columns:1fr;grid-template-rows:auto 55vh}aside{height:auto;border:0}#map{height:55vh}}
+@media print{#map,.noprint{display:none}body{display:block}aside{height:auto;border:0}}
+</style>
+</head>
+<body>
+<aside>
+<header><h1>Address Sorter</h1><button class="btn sm" id="setBtn">Settings</button></header>
+
+<section>
+<h2><i>1</i>Your addresses</h2>
+<div class="seg" id="srcSeg" style="margin-bottom:12px"><button data-s="file" class="on">Excel file</button><button data-s="paste">Paste addresses</button></div>
+<div id="pasteBox" style="display:none">
+ <textarea id="paste" rows="7" placeholder="Paste one full address per line, for example:&#10;12 Smith St, Fitzroy VIC 3065&#10;Unit 3/45 High St, Prahran VIC 3181"></textarea>
+ <div class="row" style="margin-top:8px"><button class="btn pri" id="addPaste">Add addresses</button><span class="hint" id="pasteInfo"></span></div>
+</div>
+<div class="drop" id="drop"><b>Drop an Excel or CSV file here</b><br>or click to choose one<input type="file" id="file" accept=".xlsx,.xls,.csv" hidden></div>
+<div id="mapUI" style="display:none">
+ <div class="mapgrid" id="mapInfo"></div>
+ <div class="seg" id="addrMode"><button data-m="single" class="on">One address column</button><button data-m="split">Split columns</button></div>
+ <div id="fields"></div>
+ <div class="row" style="margin-top:10px"><button class="btn pri" id="load">Load addresses</button><span class="hint" id="prev"></span></div>
+</div>
+<div class="row" style="margin-top:12px"><button class="btn sm" id="tpl">Download blank template</button><span class="hint" id="count"></span></div>
+</section>
+
+<section>
+<h2><i>2</i>Start point and travel</h2>
+<div class="row" style="flex-wrap:nowrap"><input type="text" id="start" placeholder="Type your starting address"><button class="btn" id="gps" title="Use my current location">Use my location</button></div>
+<div class="row" style="margin-top:12px"><div class="seg" id="modeSeg"><button data-v="driving" class="on">Drive</button><button data-v="walking">Walk</button></div>
+<div class="seg" id="orderSeg"><button data-v="closest" class="on">Closest first</button><button data-v="route">Best route</button></div></div>
+<p class="hint" id="orderHint">Closest first ranks every address by travel distance from your start.</p>
+<div class="row" style="margin-top:12px"><button class="btn pri" id="go">Sort addresses</button></div>
+<div class="bar" id="barWrap" style="display:none"><div id="bar"></div></div><p class="hint" id="status"></p>
+</section>
+
+<section style="flex:1">
+<h2><i>3</i>Results</h2>
+<div class="row noprint" style="margin-bottom:10px"><input type="text" id="q" placeholder="Search" style="flex:1;min-width:120px"><label class="row" style="gap:6px;font-size:13px;color:var(--muted)"><input type="checkbox" id="hideDone">Hide done</label></div>
+<div class="row noprint" style="margin-bottom:10px"><button class="btn sm" id="xlsx">Export Excel</button><button class="btn sm" id="copy">Copy list</button><button class="btn sm" id="gmap">Route in Google Maps</button><button class="btn sm" id="print">Print</button><button class="btn sm" id="clear">Clear all</button></div>
+<ul id="list"></ul><div class="empty" id="empty">Load your addresses and press Sort addresses.</div>
+</section>
+</aside>
+<div id="map"></div>
+
+<dialog id="dlg">
+<h2 style="font-size:18px">Settings</h2>
+<p class="hint" style="margin:0 0 10px"><b>Google key is optional.</b> Without it the app uses free OpenStreetMap data, which works well for most Australian addresses but is slower. A Google key makes address matching faster and more accurate.</p>
+<label class="f" style="grid-template-columns:1fr"><span>Google API key</span><input type="password" id="key" placeholder="Paste your key here (starts with AIza)"></label>
+<div class="row"><button class="btn pri" id="saveKey">Save key</button><button class="btn" id="testKey">Test key</button><button class="btn" id="rmKey">Remove key</button><button class="btn" id="closeDlg" style="margin-left:auto">Close</button></div>
+<p class="hint" id="keyMsg"></p>
+<h2 style="font-size:15px;margin-top:18px">How to get a Google key</h2>
+<ol class="g">
+<li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> and sign in with a Google account.</li>
+<li>Click the project menu at the top, choose <b>New project</b>, then <b>Create</b>.</li>
+<li>Open the menu (three lines) &gt; <b>Billing</b> and add a payment card. Google requires this, and a free monthly allowance applies.</li>
+<li>Open <b>APIs &amp; Services</b> &gt; <b>Library</b>, search <b>Geocoding API</b>, click it, then <b>Enable</b>.</li>
+<li>Open <b>APIs &amp; Services</b> &gt; <b>Credentials</b> &gt; <b>Create credentials</b> &gt; <b>API key</b>. Copy the key.</li>
+<li>Click <b>Edit API key</b>, under <b>API restrictions</b> pick <b>Geocoding API</b>, and save. Leave website restrictions on <b>None</b>.</li>
+<li>Paste the key above and press <b>Save key</b>.</li>
+</ol>
+</dialog>
+<div id="toast"></div>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/leaflet.js"></script>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const toast=(m,t=3500)=>{const e=$('#toast');e.textContent=m;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',t)};
+
+const saved=store.get('as.state',{});
+const S={items:saved.items||[],start:saved.start||null,mode:saved.mode||'driving',order:saved.order||'closest',key:store.get('as.key',''),headers:[],rows:[],amode:'single',sorted:[],sel:null};
+const persist=()=>store.set('as.state',{items:S.items,start:S.start,mode:S.mode,order:S.order});
+
+/* ---------- file + column mapping ---------- */
+const FIELDS={single:[['address','Address'],['label','Name (optional)']],split:[['street','Street'],['suburb','Suburb'],['state','State'],['postcode','Postcode'],['label','Name (optional)']]};
+const GUESS={address:/address/i,street:/street|addr/i,suburb:/suburb|city|town|locality/i,state:/^state|^st$/i,postcode:/post/i,label:/name|customer|client|title|label|job/i,lat:/^lat/i,lng:/^(lng|lon)/i};
+let M={};
+function readFile(f){
+  const r=new FileReader();
+  r.onload=e=>{try{
+    const wb=XLSX.read(e.target.result,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]];
+    const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    S.headers=(aoa[0]||[]).map(String).filter(h=>h.trim());
+    S.rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+    if(!S.rows.length||!S.headers.length)return toast('No rows found. The first row must contain column headings.');
+    const sig='as.map.'+S.headers.join('|'),sv=store.get(sig,null);
+    M=sv?.map||{};S.amode=sv?.amode||(S.headers.some(h=>GUESS.address.test(h))?'single':'split');
+    if(!sv)for(const k in GUESS){const h=S.headers.find(h=>GUESS[k].test(h)&&!Object.values(M).includes(h));if(h)M[k]=h}
+    S.sig=sig;$('#mapUI').style.display='block';
+    $('#mapInfo').textContent=`${S.rows.length} rows found in "${f.name}". Choose which column holds each detail.`;
+    drawFields();
+  }catch(err){toast('Could not read that file: '+err.message)}};
+  r.readAsArrayBuffer(f);
+}
+function drawFields(){
+  $$('#addrMode button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.amode));
+  const opt=sel=>'<option value="">None</option>'+S.headers.map(h=>`<option ${h===sel?'selected':''}>${esc(h)}</option>`).join('');
+  $('#fields').innerHTML=[...FIELDS[S.amode],['lat','Latitude (if you have it)'],['lng','Longitude (if you have it)']].map(([k,l])=>`<label class="f">${l}<select data-k="${k}">${opt(M[k])}</select></label>`).join('');
+  $$('#fields select').forEach(s=>s.onchange=()=>{M[s.dataset.k]=s.value;prev()});prev();
+}
+const rowAddr=r=>S.amode==='single'?String(r[M.address]||'').trim():['street','suburb','state','postcode'].map(k=>String(r[M[k]]||'').trim()).filter(Boolean).join(', ');
+function prev(){const r=S.rows[0];$('#prev').textContent=r?'Example: '+(rowAddr(r)||'(empty)'):''}
+function loadItems(){
+  const need=S.amode==='single'?M.address:(M.street||M.suburb);
+  if(!need)return toast('Choose the address column first.');
+  store.set(S.sig,{map:M,amode:S.amode});
+  S.items=S.rows.map((r,i)=>{const a=rowAddr(r),la=parseFloat(r[M.lat]),ln=parseFloat(r[M.lng]);
+    return{id:i,label:String(r[M.label]||'').trim()||a.split(',')[0],addr:a,lat:isNaN(la)?null:la,lng:isNaN(ln)?null:ln,raw:r,done:false}}).filter(i=>i.addr||i.lat!=null);
+  S.sorted=[];persist();$('#mapUI').style.display='none';render();
+  toast(`${S.items.length} addresses loaded. Set your start point, then press Sort addresses.`);
+}
+
+/* ---------- geocoding ---------- */
+const gcache=store.get('as.geo',{});
+const simplify=a=>a.replace(/^(unit|u|apt|apartment|flat|suite|shop|level|lvl|lot)\s*[\w-]+\s*[,\/ ]\s*/i,'').replace(/^[\w-]+\/(?=\d)/,'');
+async function fj(u,ms=15000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(u,{signal:c.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(t)}}
+async function geocodeOne(addr){
+  const k=addr.toLowerCase();if(gcache[k])return gcache[k];
+  for(const q of [...new Set([addr,simplify(addr)])]){
+    let p=null;
+    if(S.key){
+      const j=await fj(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&components=country:AU&region=au&key=${encodeURIComponent(S.key)}`);
+      if(j.status==='OK'){const l=j.results[0].geometry.location;p={lat:l.lat,lng:l.lng}}
+      else if(j.status!=='ZERO_RESULTS')throw new Error('Google: '+(j.error_message||j.status));
+    }else{
+      try{
+        const j=await fj(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=au&q=${encodeURIComponent(q)}`);
+        if(j[0])p={lat:+j[0].lat,lng:+j[0].lon};
+        await sleep(1100);
+      }catch{
+        const j=await fj(`https://photon.komoot.io/api/?limit=1&bbox=112,-44,154,-9&q=${encodeURIComponent(q)}`);
+        const c=j.features&&j.features[0];if(c)p={lat:c.geometry.coordinates[1],lng:c.geometry.coordinates[0]};
+        await sleep(300);
+      }
+    }
+    if(p){gcache[k]=p;store.set('as.geo',gcache);return p}
+  }
+  return null;
+}
+async function geocodeAll(){
+  const todo=S.items.filter(i=>i.lat==null);todo.forEach(i=>i.failed=false);let n=0;
+  for(const it of todo){
+    $('#status').textContent=`Finding locations ${++n} of ${todo.length}`;$('#bar').style.width=(n/todo.length*100)+'%';
+    try{const p=await geocodeOne(it.addr);if(p){it.lat=p.lat;it.lng=p.lng}else it.failed=true}
+    catch(e){if(/Google/.test(e.message)){toast(e.message+'. Check your key in Settings.',6000);throw e}it.failed=true}
+    if(n%10==0)persist();
+  }
+  persist();
+}
+
+/* ---------- routing ---------- */
+const hav=(a,b)=>{const R=6371,r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dg=r(b.lng-a.lng),h=Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dg/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+const est=it=>{const km=hav(S.start,it)*1.3;return{km,min:km/(S.mode==='walking'?5:40)*60,est:true}};
+async function route(){
+  const need=S.items.filter(i=>i.lat!=null&&!(i.d&&i.d[S.mode]));
+  const pr=S.mode==='walking'?['routed-foot','foot']:['routed-car','driving'];let n=0;
+  for(let k=0;k<need.length;k+=80){
+    const ch=need.slice(k,k+80);$('#status').textContent=`Measuring ${S.mode==='walking'?'walking':'driving'} routes`;
+    try{
+      const co=[S.start,...ch].map(p=>p.lng+','+p.lat).join(';');
+      const r=await fj(`https://routing.openstreetmap.de/${pr[0]}/table/v1/${pr[1]}/${co}?sources=0&annotations=duration,distance`);
+      ch.forEach((it,j)=>{const m=r.durations[0][j+1],d=r.distances[0][j+1];(it.d??={})[S.mode]=m==null?est(it):{km:d/1000,min:m/60}});
+    }catch{ch.forEach(it=>(it.d??={})[S.mode]=est(it));S.estimated=true}
+  }
+}
+function arrange(){
+  const ok=S.items.filter(i=>i.lat!=null),bad=S.items.filter(i=>i.lat==null);
+  if(S.order==='closest')ok.sort((a,b)=>a.d[S.mode].km-b.d[S.mode].km);
+  else{const left=[...ok],out=[];let cur=S.start;while(left.length){let bi=0,bd=1e9;left.forEach((x,i)=>{const d=hav(cur,x);if(d<bd){bd=d;bi=i}});cur=left.splice(bi,1)[0];out.push(cur)}ok.splice(0,ok.length,...out)}
+  S.sorted=[...ok,...bad];
+}
+
+/* ---------- run ---------- */
+async function run(){
+  if(!S.items.length)return toast('Load your addresses first.');
+  if(!S.start){const t=$('#start').value.trim();if(!t)return toast('Enter a start address or press Use my location.');
+    $('#status').textContent='Finding your start point';
+    try{const p=await geocodeOne(t);if(!p)return toast('Start address not found. Add the suburb and state.');S.start={...p,text:t}}catch(e){return toast('Start lookup failed: '+e.message)}}
+  $('#go').disabled=true;$('#barWrap').style.display='block';S.estimated=false;
+  try{await geocodeAll();await route();arrange();render();
+    const f=S.items.filter(i=>i.lat==null).length;
+    $('#status').textContent=(f?`${f} address${f>1?'es':''} not found. Use Fix to correct them. `:'Done. ')+(S.estimated?'Routing service was unreachable, so some distances are straight-line estimates (marked ~).':'');
+  }catch(e){$('#status').textContent='Stopped: '+e.message}
+  $('#go').disabled=false;$('#barWrap').style.display='none';persist();
+}
+
+/* ---------- render ---------- */
+const fmt=d=>{if(!d)return['',''];const t=d.min<60?Math.round(d.min)+' min':Math.floor(d.min/60)+' h '+Math.round(d.min%60)+' min';return[(d.est?'~':'')+(d.km<10?d.km.toFixed(1):Math.round(d.km))+' km',t]};
+const navUrl=it=>`https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=${S.mode}`;
+let map,layer,tiles,tileErr=0,tileSrc=0;
+const dark=matchMedia('(prefers-color-scheme: dark)').matches;
+const TILES=[
+ {u:`https://{s}.basemaps.cartocdn.com/${dark?'dark_all':'rastertiles/voyager'}/{z}/{x}/{y}{r}.png`,o:{subdomains:'abcd',maxZoom:19,attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}},
+ {u:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',o:{maxZoom:19,attribution:'Tiles &copy; Esri'}}];
+function addTiles(){
+  if(tiles)map.removeLayer(tiles);const t=TILES[tileSrc];
+  tiles=L.tileLayer(t.u,t.o).addTo(map);tileErr=0;
+  tiles.on('tileerror',()=>{if(++tileErr>=6&&tileSrc<TILES.length-1){tileSrc++;addTiles()}});
+}
+function render(){
+  const q=$('#q').value.toLowerCase(),hd=$('#hideDone').checked;
+  const list=(S.sorted.length?S.sorted:S.items);
+  $('#count').textContent=S.items.length?`${S.items.length} addresses saved`:'';
+  $('#empty').style.display=list.length?'none':'block';
+  let rank=0;
+  $('#list').innerHTML=list.map(it=>{
+    const sorted=S.sorted.length&&it.lat!=null;if(sorted)rank++;
+    if((hd&&it.done)||(q&&!(it.label+it.addr).toLowerCase().includes(q)))return'';
+    const [d,t]=fmt(it.d&&it.d[S.mode]);
+    return`<li class="it ${it.done?'done':''} ${it.failed&&it.lat==null?'fail':''} ${S.sel===it.id?'sel':''}" data-id="${it.id}">
+     <span class="rk">${it.lat==null&&S.sorted.length?'!':sorted?rank:'·'}</span>
+     <div><div class="nm">${esc(it.label)}</div><div class="ad">${esc(it.addr)}</div></div>
+     <div class="ds">${it.lat!=null&&d?`<strong>${d}</strong>${t}`:it.failed?'Not found':''}</div>
+     <div class="go"><input type="checkbox" data-act="done" ${it.done?'checked':''} title="Mark done">${it.lat!=null?`<a href="${navUrl(it)}" target="_blank" rel="noopener" data-act="nav">Navigate</a>`:`<button class="x" data-act="fix">Fix</button>`}</div></li>`}).join('');
+  drawMap();
+}
+function drawMap(){
+  if(!window.L)return;
+  if(!map){map=L.map('map',{zoomControl:true}).setView([-37.8136,144.9631],10);addTiles();layer=L.layerGroup().addTo(map)}
+  layer.clearLayers();const pts=[];
+  const pin=(it,n,cls)=>L.marker([it.lat,it.lng],{icon:L.divIcon({className:'',html:`<div class="pin ${cls}">${n}</div>`,iconSize:[26,26],iconAnchor:[13,13]})});
+  if(S.start){pin(S.start,'S','start').addTo(layer).bindTooltip('Start');pts.push([S.start.lat,S.start.lng])}
+  let r=0;const line=S.start?[[S.start.lat,S.start.lng]]:[];
+  S.sorted.forEach(it=>{if(it.lat==null)return;r++;pts.push([it.lat,it.lng]);line.push([it.lat,it.lng]);
+    pin(it,r,it.done?'done':'').addTo(layer).bindTooltip(esc(it.label)+'<br>'+esc(it.addr)).on('click',()=>{S.sel=it.id;$('#list').querySelector(`[data-id="${it.id}"]`)?.scrollIntoView({block:'center'})})});
+  if(S.order==='route'&&line.length>1)L.polyline(line,{color:'#0A7A5A',weight:3,opacity:.7,dashArray:'6 6'}).addTo(layer);
+  if(pts.length)map.fitBounds(pts,{padding:[40,40],maxZoom:15});
+}
+
+/* ---------- events ---------- */
+const drop=$('#drop');
+drop.onclick=()=>$('#file').click();
+$('#file').onchange=e=>e.target.files[0]&&readFile(e.target.files[0]);
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('on')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('on')}));
+drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&readFile(e.dataTransfer.files[0]));
+$$('#addrMode button').forEach(b=>b.onclick=()=>{S.amode=b.dataset.m;drawFields()});
+$('#load').onclick=loadItems;
+$$('#srcSeg button').forEach(b=>b.onclick=()=>{const p=b.dataset.s==='paste';$$('#srcSeg button').forEach(x=>x.classList.toggle('on',x===b));$('#pasteBox').style.display=p?'block':'none';$('#drop').style.display=p?'none':'block';if(p)$('#mapUI').style.display='none'});
+$('#addPaste').onclick=()=>{
+  const lines=$('#paste').value.split(/\r?\n/).map(l=>l.replace(/\t+/g,', ').replace(/\s+/g,' ').trim()).filter(Boolean);
+  if(!lines.length)return toast('Paste at least one address first.');
+  const have=new Set(S.items.map(i=>i.addr.toLowerCase()));let id=S.items.reduce((m,i)=>Math.max(m,i.id),-1)+1,add=0,dup=0;
+  lines.forEach(a=>{if(have.has(a.toLowerCase())){dup++;return}have.add(a.toLowerCase());S.items.push({id:id++,label:a.split(',')[0],addr:a,lat:null,lng:null,raw:{Address:a},done:false});add++});
+  S.sorted=[];persist();render();$('#paste').value='';
+  $('#pasteInfo').textContent=`${add} added${dup?`, ${dup} duplicate${dup>1?'s':''} skipped`:''}.`;
+  toast(`${add} addresses added. Set your start point, then press Sort addresses.`);
+};
+$('#tpl').onclick=()=>{const ws=XLSX.utils.aoa_to_sheet([['Name','Street','Suburb','State','Postcode'],['Example Cafe','1 Example St','Melbourne','VIC','3000']]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Addresses');XLSX.writeFile(wb,'address-template.xlsx')};
+$$('#modeSeg button').forEach(b=>b.onclick=()=>{S.mode=b.dataset.v;seg();if(S.sorted.length)run()});
+$$('#orderSeg button').forEach(b=>b.onclick=()=>{S.order=b.dataset.v;seg();if(S.sorted.length){arrange();render();persist()}});
+function seg(){$$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.mode));$$('#orderSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.order));
+  $('#orderHint').textContent=S.order==='closest'?'Closest first ranks every address by travel distance from your start.':'Best route chains the stops so each one is near the previous one, starting from your start.'}
+$('#go').onclick=run;
+$('#start').oninput=()=>{S.start=null;if(S.items.some(i=>i.d)){S.items.forEach(i=>delete i.d)}};
+$('#gps').onclick=()=>{
+  if(!navigator.geolocation)return toast('This browser cannot share location. Type your address instead.');
+  navigator.geolocation.getCurrentPosition(p=>{S.start={lat:p.coords.latitude,lng:p.coords.longitude,text:'My location'};S.items.forEach(i=>delete i.d);$('#start').value='My location';persist();toast('Location found.');drawMap()},
+   ()=>toast('Location was blocked or unavailable. Type your address instead.',5000),{enableHighAccuracy:true,timeout:15000});
+};
+$('#list').onclick=e=>{
+  const li=e.target.closest('.it');if(!li)return;const it=S.items.find(i=>i.id==li.dataset.id),a=e.target.dataset.act;
+  if(a==='done'){it.done=e.target.checked;persist();render();return}
+  if(a==='nav')return;
+  if(a==='fix'){const v=prompt('Correct the address:',it.addr);if(v){it.addr=v.trim();it.failed=false;it.lat=it.lng=null;persist();run()}return}
+  S.sel=it.id;if(it.lat!=null&&map){map.setView([it.lat,it.lng],16)}render();
+};
+$('#q').oninput=render;$('#hideDone').onchange=render;
+const ordered=()=>S.sorted.filter(i=>i.lat!=null);
+$('#xlsx').onclick=()=>{
+  if(!S.sorted.length)return toast('Sort your addresses first.');let r=0;
+  const out=S.sorted.map(it=>{const d=it.d&&it.d[S.mode];return{Rank:it.lat!=null?++r:'',...it.raw,'Distance (km)':d?+d.km.toFixed(2):'','Time (min)':d?Math.round(d.min):'',Latitude:it.lat??'',Longitude:it.lng??'',Done:it.done?'Yes':''}});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(out),'Sorted');XLSX.writeFile(wb,'sorted-addresses.xlsx');
+};
+$('#copy').onclick=async()=>{const t=ordered().map((it,i)=>`${i+1}. ${it.label} - ${it.addr}`).join('\n');if(!t)return toast('Sort your addresses first.');try{await navigator.clipboard.writeText(t);toast('List copied.')}catch{toast('Copy was blocked by the browser.')}};
+$('#gmap').onclick=()=>{
+  const st=ordered().filter(i=>!i.done).slice(0,10);if(!st.length)return toast('Nothing to route yet.');
+  const p=i=>i.lat+','+i.lng,last=st[st.length-1],via=st.slice(0,-1).map(p).join('|');
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${p(last)}${via?'&waypoints='+encodeURIComponent(via):''}&travelmode=${S.mode}`,'_blank');
+  if(ordered().filter(i=>!i.done).length>10)toast('Google Maps allows 10 stops per link, so the first 10 were sent.',5000);
+};
+$('#print').onclick=()=>window.print();
+$('#clear').onclick=()=>{if(confirm('Remove all saved addresses from this browser?')){S.items=[];S.sorted=[];persist();render()}};
+
+/* settings */
+const dlg=$('#dlg');
+$('#setBtn').onclick=()=>{$('#key').value=S.key;$('#keyMsg').textContent=S.key?'A Google key is saved.':'No key saved. Using free OpenStreetMap data.';dlg.showModal()};
+$('#closeDlg').onclick=()=>dlg.close();
+$('#saveKey').onclick=()=>{S.key=$('#key').value.trim();store.set('as.key',S.key);$('#keyMsg').textContent='Saved.'};
+$('#rmKey').onclick=()=>{S.key='';$('#key').value='';store.set('as.key','');$('#keyMsg').textContent='Key removed. Using free OpenStreetMap data.'};
+$('#testKey').onclick=async()=>{const k=$('#key').value.trim();if(!k)return $('#keyMsg').textContent='Paste a key first.';
+  try{const j=await fj(`https://maps.googleapis.com/maps/api/geocode/json?address=Sydney+NSW&key=${encodeURIComponent(k)}`);
+    $('#keyMsg').textContent=j.status==='OK'?'Key works.':'Key rejected: '+(j.error_message||j.status)}catch(e){$('#keyMsg').textContent='Could not reach Google. Check your internet connection.'}};
+
+/* start-up */
+if(S.start)$('#start').value=S.start.text||'';
+seg();
+if(S.items.length&&S.start&&S.items.every(i=>i.failed||i.d&&i.d[S.mode])){arrange();}
+render();
+</script>
+</body>
+</html>
