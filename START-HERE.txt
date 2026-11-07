@@ -1,6 +1,0 @@
-1. Double-click index.html (Chrome, Edge, Firefox or Safari).
-2. Drop your Excel file on the page. The app finds the heading row and columns by itself.
-3. Set your start point, press Sort addresses, then Export Excel.
-   The export is your own file, same layout and formatting, with rows in the new order.
-To send addresses to other people, open the Distribute tab (Settings explains how to put the app online).
-Move or copy this whole folder anywhere.
