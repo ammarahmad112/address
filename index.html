@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B7A5C">
+<title>Address Sorter</title>
+<meta name="app" content="sort">
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+:root{--bg:#E9EFEB;--panel:#fff;--ink:#14201C;--muted:#5B6B64;--line:#DEE6E1;--accent:#0B7A5C;--accent-ink:#fff;--warm:#E8A317;--bad:#B3361F;--soft:#EEF4F0;--shadow:0 1px 2px rgba(20,32,28,.06),0 8px 28px rgba(20,32,28,.10);--r:16px;--side:clamp(390px,31vw,580px)}
+@media (prefers-color-scheme:dark){:root{--bg:#0B100E;--panel:#151E1A;--ink:#E8F0EC;--muted:#93A39B;--line:#26332D;--accent:#3FC79A;--accent-ink:#052117;--soft:#1C2823;--bad:#FF8A73;--shadow:0 1px 2px #0006,0 8px 28px #0007}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:15px/1.5 "Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;background:var(--bg);color:var(--ink);display:grid;grid-template-columns:var(--side) 1fr;gap:14px;padding:14px;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+aside{background:var(--panel);border-radius:20px;box-shadow:var(--shadow);height:calc(100vh - 28px);overflow:auto;display:flex;flex-direction:column;scrollbar-width:thin}
+#map{height:calc(100vh - 28px);border-radius:20px;box-shadow:var(--shadow);overflow:hidden;background:var(--soft) repeating-linear-gradient(0deg,transparent 0 39px,var(--line) 39px 40px),repeating-linear-gradient(90deg,transparent 0 39px,var(--line) 39px 40px)}
+header{display:flex;align-items:center;justify-content:space-between;padding:22px 24px 14px;position:sticky;top:0;background:var(--panel);z-index:5}
+h1{font-size:26px;letter-spacing:-.03em;margin:0;font-weight:750;display:flex;align-items:center;gap:10px}
+h1::before{content:"";width:14px;height:14px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--accent);box-shadow:0 0 0 4px var(--soft)}
+h2{font-size:15px;margin:0 0 14px;font-weight:650;display:flex;gap:10px;align-items:center}
+h2 i{font-style:normal;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:13px;font-weight:700}
+section{padding:20px 24px;border-top:1px solid var(--line)}
+.btn{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:10px 16px;cursor:pointer;font-weight:600;transition:background .15s,transform .05s,box-shadow .15s;min-height:40px}
+.btn:hover{background:var(--soft)}.btn:active{transform:translateY(1px)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 4px 14px color-mix(in srgb,var(--accent) 35%,transparent)}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn.sm{padding:6px 12px;font-size:13.5px;min-height:34px}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:28px 20px;text-align:center;color:var(--muted);cursor:pointer;transition:.15s;background:var(--soft)}
+.drop.on,.drop:hover{border-color:var(--accent);color:var(--ink)}
+.drop b{color:var(--ink)}
+input[type=text],input[type=password],select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);min-height:42px}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;font-size:14px;line-height:1.5}
+input[type=checkbox]{width:19px;height:19px;accent-color:var(--accent);cursor:pointer}
+label.f{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center;margin:8px 0;color:var(--muted);font-size:13.5px}
+.seg{display:inline-flex;background:var(--soft);border-radius:12px;padding:3px;gap:2px}
+.seg button{border:0;background:none;padding:8px 16px;cursor:pointer;font-weight:600;color:var(--muted);border-radius:9px;min-height:36px}
+.seg button.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.14)}
+.hint{color:var(--muted);font-size:13px;margin:6px 0 0}
+.bar{height:6px;background:var(--soft);border-radius:3px;overflow:hidden;margin-top:12px}
+.bar div{height:100%;width:0;background:var(--accent);transition:width .2s;border-radius:3px}
+#list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.it{display:grid;grid-template-columns:36px 1fr auto auto;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);cursor:pointer;border-radius:14px;transition:background .15s,border-color .15s}
+.it:hover{background:var(--soft)}.it.sel{border-color:var(--accent);background:var(--soft)}
+.it .rk{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--soft);font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent)}
+.it .nm{font-weight:650;overflow-wrap:anywhere}
+.it .ad{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.it .ds{text-align:right;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.it .ds strong{display:block;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+.it.done{opacity:.5}.it.done .nm{text-decoration:line-through}
+.it.fail .rk{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.it a{color:var(--accent);font-weight:650;text-decoration:none;font-size:13px}
+.it a:hover{text-decoration:underline}
+.it .go{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.it .x{background:none;border:0;color:var(--bad);cursor:pointer;font-weight:650;font-size:13px;padding:0}
+.pin{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font:700 12px system-ui;border:2.5px solid #fff;box-shadow:0 2px 6px #0006}
+.pin.start{background:var(--warm);color:#222}.pin.done{background:#8a9892}
+dialog{border:0;border-radius:20px;background:var(--panel);color:var(--ink);max-width:540px;width:92vw;max-height:90vh;padding:26px;box-shadow:var(--shadow)}
+dialog::backdrop{background:#0009;backdrop-filter:blur(3px)}
+ol.g{padding-left:20px;margin:10px 0}ol.g li{margin:8px 0}
+a{color:var(--accent)}
+#toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--panel);padding:12px 18px;border-radius:12px;display:none;z-index:9999;max-width:90vw;box-shadow:var(--shadow)}
+.empty{color:var(--muted);padding:6px 0}
+.mapgrid{margin:8px 0 12px;font-size:13px;color:var(--muted)}
+.leaflet-control-layers,.leaflet-bar{border-radius:12px!important;overflow:hidden}
+@media (min-width:2000px){body{font-size:16px}}
+@media (max-width:1100px){:root{--side:360px}label.f{grid-template-columns:1fr}}
+@media (max-width:860px){
+ body{display:flex;flex-direction:column;gap:0;padding:0;height:auto;min-height:100%;background:var(--panel)}
+ #map{order:-1;position:sticky;top:0;z-index:0;height:42vh;min-height:240px;border-radius:0;box-shadow:none}
+ aside{height:auto;overflow:visible;position:relative;z-index:1;margin-top:-18px;border-radius:22px 22px 0 0;padding-bottom:env(safe-area-inset-bottom)}
+ header{border-radius:22px 22px 0 0;padding:18px 18px 10px}
+ section{padding:18px}
+ label.f{grid-template-columns:120px 1fr}
+ input,select,textarea{font-size:16px!important}
+ .btn,.seg button{min-height:44px}.btn.sm{min-height:40px}
+ dialog{width:100vw;max-width:100vw;margin:auto 0 0;border-radius:22px 22px 0 0;max-height:88vh}
+}
+@media (max-width:480px){
+ label.f{grid-template-columns:1fr}
+ .it{grid-template-columns:34px 1fr auto;gap:8px 10px}
+ .it .go{grid-column:2/-1;flex-direction:row;justify-content:space-between;align-items:center}
+ .seg{width:100%}.seg button{flex:1;padding:8px 6px}
+ .row.wrapfull .btn{flex:1}
+}
+@media print{#map,.noprint,header .btn{display:none}body{display:block;padding:0;background:#fff}aside{height:auto;box-shadow:none;overflow:visible}.it{break-inside:avoid}}
+.tabsbar{padding:0 24px 14px}.tabsbar .seg{width:100%}.tabsbar .seg button{flex:1}
+#who{display:none;padding:0 24px 12px;margin:0}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--soft);border-radius:999px;padding:5px 6px 5px 11px;font-weight:600;font-size:14px}
+.chip b{background:var(--panel);border-radius:999px;padding:0 8px;font-size:12.5px}
+.chip button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:0 6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.arow{display:grid;grid-template-columns:1fr 140px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.arow .nm{font-weight:650;overflow-wrap:anywhere}.arow .ad{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.lk{display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px}
+.lk .ad{font-size:13px;color:var(--muted)}
+.note{background:color-mix(in srgb,var(--warm) 18%,transparent);border-radius:12px;padding:12px 14px;margin-bottom:10px;font-size:13.5px}
+.wonly{display:none}
+.worker .wonly{display:inline-block}
+.worker #sec1,.worker #secAdmin,.worker #tabsbar,.worker #setBtn,.worker #clear,.worker #xlsx,.worker #tpl{display:none!important}
+.worker #who{display:block}
+@media (max-width:860px){.tabsbar{padding:0 18px 12px}#who{padding:0 18px 12px}}
+@media (max-width:480px){.arow{grid-template-columns:1fr}}
+@media print{.tabsbar,#secAdmin,#who{display:none!important}}
+
+/* distribute table + info lines */
+.tag{display:inline-block;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);border-radius:6px;padding:0 7px;font-size:11.5px;font-weight:700;vertical-align:1px}
+.cm{margin-top:3px;font-size:12.5px;color:var(--ink);background:color-mix(in srgb,var(--warm) 16%,transparent);border-radius:8px;padding:4px 8px;white-space:pre-line;overflow-wrap:anywhere}
+.lv{margin-top:3px;font-size:12.5px;color:var(--muted)}.lv b{color:var(--ink)}
+details.more{margin-top:6px;font-size:12.5px}details.more summary{cursor:pointer;color:var(--accent);font-weight:650}
+details.more dl{margin:6px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 10px}details.more dt{color:var(--muted)}details.more dd{margin:0;overflow-wrap:anywhere}
+.tb{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.tb select,.tb input[type=date],.tb input[type=number]{width:auto;min-height:36px;padding:6px 10px;max-width:100%}
+.tb input[type=text]{min-height:36px;padding:6px 10px}
+label.mini{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.selbar{background:var(--soft);border-radius:12px;padding:8px 10px}
+details.dd{position:relative}details.dd summary{list-style:none;display:inline-flex;align-items:center}details.dd summary::-webkit-details-marker{display:none}
+details.dd .pop{position:absolute;z-index:20;top:100%;left:0;margin-top:6px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:12px;min-width:240px;max-width:min(380px,86vw);max-height:50vh;overflow:auto}
+details.dd .pop label.f{grid-template-columns:110px 1fr}
+.tw{overflow:auto;max-height:64vh;border:1px solid var(--line);border-radius:14px;margin-top:10px;background:var(--panel)}
+table.dt{border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%}
+.dt th,.dt td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;background:var(--panel);white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
+.dt thead th{position:sticky;top:0;z-index:3;background:var(--soft);vertical-align:bottom}
+.dt .hl{cursor:pointer;font-weight:700;user-select:none}.dt .hl:hover{color:var(--accent)}
+.dt .fi{display:block;width:100%;min-width:90px;min-height:30px;padding:4px 8px;margin-top:5px;font-size:12.5px;border-radius:8px;font-weight:400}
+.dt .ck{position:sticky;left:0;z-index:2;width:36px;min-width:36px;padding-left:12px}
+.dt .n{color:var(--muted);width:34px;min-width:34px;text-align:right}
+.dt .nmc{position:sticky;left:36px;z-index:2;min-width:230px;max-width:340px;white-space:normal;box-shadow:1px 0 0 var(--line)}
+.dt thead th.ck,.dt thead th.nmc{z-index:5}
+.dt .adc{min-width:200px;max-width:280px;white-space:normal}
+.dt .nm{font-weight:650}.dt .warn{color:var(--bad);font-size:12px}
+.dt td select.as{min-height:32px;padding:4px 8px;font-size:13px;min-width:130px}
+.dt tr.as td.ck{box-shadow:inset 4px 0 0 var(--pc)}
+.dt tr.sel td{background:color-mix(in srgb,var(--accent) 11%,var(--panel))}
+.plink{font-weight:750;font-size:16px;color:var(--accent);text-decoration:none;overflow-wrap:anywhere}.plink:hover{text-decoration:underline}
+body.dist{--side:clamp(560px,calc(100vw - 470px),1800px)}
+@media (min-width:861px) and (max-width:1100px){body.dist{grid-template-columns:1fr}body.dist #map{display:none}}
+@media (max-width:860px){.dt .nmc{min-width:170px}.tw{max-height:70vh}}
+.chip input[type=checkbox]{width:16px;height:16px}#pAdd{white-space:nowrap}
+</style>
+</head>
+<body>
+<aside>
+<header><h1>Address Sorter</h1><button class="btn sm" id="setBtn">Settings</button></header>
+<p class="hint" id="who"></p>
+<div class="tabsbar" id="tabsbar"><div class="seg" id="tabs"><button data-t="sort" class="on">My list</button><button data-t="dist">Distribute</button></div></div>
+
+<section id="sec1">
+<h2><i>1</i>Your addresses</h2>
+<div class="seg" id="srcSeg" style="margin-bottom:12px"><button data-s="file" class="on">Excel file</button><button data-s="paste">Paste addresses</button></div>
+<div id="pasteBox" style="display:none">
+ <textarea id="paste" rows="7" placeholder="Paste one full address per line, for example:&#10;12 Smith St, Fitzroy VIC 3065&#10;Unit 3/45 High St, Prahran VIC 3181"></textarea>
+ <div class="row" style="margin-top:8px"><button class="btn pri" id="addPaste">Add addresses</button><span class="hint" id="pasteInfo"></span></div>
+</div>
+<div class="drop" id="drop"><b>Drop an Excel or CSV file here</b><br>or click to choose one<input type="file" id="file" accept=".xlsx,.xls,.csv" hidden></div>
+<div id="mapUI" style="display:none">
+ <div class="mapgrid" id="mapInfo"></div>
+ <div class="seg" id="addrMode"><button data-m="single" class="on">One address column</button><button data-m="split">Split columns</button></div>
+ <div id="fields"></div>
+ <div class="row" style="margin-top:10px"><button class="btn pri" id="load">Load addresses</button><span class="hint" id="prev"></span></div>
+</div>
+<div class="row" style="margin-top:12px"><button class="btn sm" id="tpl">Download blank template</button><span class="hint" id="count"></span></div>
+</section>
+
+<section id="sec2">
+<h2><i>2</i>Start point and travel</h2>
+<div class="row" style="flex-wrap:nowrap"><input type="text" id="start" placeholder="Type your starting address"><button class="btn" id="gps" title="Use my current location">Use my location</button></div>
+<div class="row" style="margin-top:12px"><div class="seg" id="modeSeg"><button data-v="driving" class="on">Drive</button><button data-v="walking">Walk</button></div>
+<div class="seg" id="orderSeg"><button data-v="closest" class="on">Closest first</button><button data-v="route">Best route</button></div></div>
+<p class="hint" id="orderHint">Closest first ranks every address by travel distance from your start.</p>
+<div class="row" style="margin-top:12px"><button class="btn pri" id="go">Sort addresses</button></div>
+<div class="bar" id="barWrap" style="display:none"><div id="bar"></div></div><p class="hint" id="status"></p>
+</section>
+
+<section id="secAdmin" style="display:none;flex:1;min-width:0">
+<h2><i>2</i>People</h2>
+<div class="row"><input type="text" id="pName" style="flex:1;min-width:150px" placeholder="Person's name"><input type="text" id="pPhone" inputmode="tel" placeholder="WhatsApp no. (optional)" style="max-width:200px"><button class="btn" id="pAdd">Add person</button></div>
+<div class="row" style="margin-top:8px"><button class="btn sm" id="pBulkBtn">Add many people at once</button></div>
+<div id="bulkBox" hidden style="margin-top:8px"><textarea id="pBulk" rows="5" placeholder="One person per line. You can add a WhatsApp number after a comma, or copy two columns (name, number) from Excel:&#10;Sam, 0412 345 678&#10;Priya&#10;Lee, 0400 111 222"></textarea><div class="row" style="margin-top:8px"><button class="btn pri" id="pBulkAdd">Add these people</button><span class="hint" id="pBulkInfo"></span></div></div>
+<div id="people" class="row" style="margin:12px 0 6px"></div>
+<div class="row" id="pbar" style="margin:0 0 10px;display:none"><button class="btn sm" id="pAll">Tick all</button><button class="btn sm" id="pNone">Untick all</button><button class="btn sm" id="pRmSel">Remove ticked</button><button class="btn sm" id="pRmAll">Remove everyone</button></div>
+<h2 style="margin-top:20px"><i>3</i>Share the addresses</h2>
+<div class="row"><button class="btn pri" id="locAll">Find locations</button><button class="btn" id="auto">Divide by area</button><label class="row" style="gap:6px;font-size:13px;color:var(--muted)"><input type="checkbox" id="bal" checked>Equal numbers</label></div>
+<div class="bar" id="barWrap2" style="display:none"><div id="bar2"></div></div><p class="hint" id="adStat"></p>
+<div class="tb"><input type="text" id="aq" placeholder="Search every column" style="flex:1;min-width:160px"><select id="alv" title="Filter by visits"><option value="">Any visit</option><option value="has">Has a visit date</option><option value="never">No visit date</option></select><label class="mini">Last visit from<input type="date" id="afrom"></label><label class="mini">to<input type="date" id="ato"></label><button class="btn sm" id="tclear">Clear filters</button></div>
+<div class="tb"><span class="hint" style="margin:0">Sort by</span><select id="s1"></select><button class="btn sm" id="d1">Ascending</button><span class="hint" style="margin:0">then by</span><select id="s2"></select><button class="btn sm" id="d2">Ascending</button>
+<details class="dd" id="colPick"><summary class="btn sm">Columns</summary><div id="colList" class="pop"></div></details>
+<details class="dd" id="roles"><summary class="btn sm">Zone, comments, Nat</summary><div id="roleBox" class="pop"></div></details></div>
+<div class="tb selbar"><b id="selCount">0 selected</b><button class="btn sm" id="selAllBtn">All shown</button><button class="btn sm" id="selNone">None</button><button class="btn sm" id="selInv">Invert</button><button class="btn sm" id="selUn">Unassigned</button><select id="selWho"></select><span class="hint" style="margin:0">First</span><input type="number" id="selN" min="1" value="10" style="width:76px"><button class="btn sm" id="selFirst">Select</button></div>
+<div class="tb"><span class="hint" style="margin:0">Give selected to</span><select id="asTo"></select><button class="btn sm pri" id="asBtn">Assign</button><button class="btn sm" id="unBtn">Unassign</button></div>
+<div class="tb"><span class="hint" style="margin:0">Spread selected</span><select id="spMode"><option value="blocks">in blocks, in table order</option><option value="rr">one by one, round-robin</option><option value="area">by area</option></select><button class="btn sm pri" id="spBtn">Spread</button><span class="hint" id="spHint" style="margin:0"></span></div>
+<div class="tb"><button class="btn sm" id="expAssign">Download assignments (Excel)</button><span class="hint" style="margin:0">Tip: shift-click a tick box to select a range.</span></div>
+<p class="hint" id="tinfo" style="margin:4px 0 0"></p>
+<div id="assign"></div>
+<h2 style="margin-top:22px"><i>4</i>Send links</h2>
+<input type="text" id="report" inputmode="numeric" placeholder="WhatsApp number for progress reports (optional), e.g. 61412345678">
+<p class="hint" style="margin-bottom:12px">Each person sees only their own addresses, with every column, comments and last visit date, sorted from where they are. Click a name to open their link. They can send you their progress from it.</p>
+<div id="links"></div>
+<div class="row" style="margin-top:10px"><button class="btn sm" id="copyAll">Copy all links</button></div>
+</section>
+<section id="sec3" style="flex:1">
+<h2><i>3</i>Results</h2>
+<p class="hint" id="prog" style="margin:-6px 0 10px"></p>
+<div class="row noprint" style="margin-bottom:10px"><input type="text" id="q" placeholder="Search" style="flex:1;min-width:120px"><label class="row" style="gap:6px;font-size:13px;color:var(--muted)"><input type="checkbox" id="hideDone">Hide done</label></div>
+<div class="row noprint" style="margin-bottom:10px"><button class="btn sm" id="xlsx" title="Keeps your Excel file exactly as it is. Only the row order changes.">Export Excel</button><button class="btn sm" id="copy">Copy list</button><button class="btn sm" id="gmap">Route in Google Maps</button><button class="btn sm" id="print">Print</button><button class="btn sm" id="clear">Clear all</button><button class="btn sm wonly" id="share">Share progress</button></div>
+<label class="row noprint" style="gap:8px;flex-wrap:nowrap;align-items:center;font-size:13px;color:var(--muted);margin:-2px 0 10px"><input type="checkbox" id="xtra" style="flex:none">Also add distance, time and assigned columns to the export</label>
+<ul id="list"></ul><div class="empty" id="empty">Load your addresses and press Sort addresses.</div>
+</section>
+</aside>
+<div id="map"></div>
+
+<dialog id="dlg">
+<h2 style="font-size:18px">Settings</h2>
+<p class="hint" style="margin:0 0 10px"><b>Google key is optional.</b> Without it the app uses free OpenStreetMap data, which works well for most Australian addresses but is slower. A Google key makes address matching faster and more accurate.</p>
+<label class="f" style="grid-template-columns:1fr"><span>Google API key</span><input type="password" id="key" placeholder="Paste your key here (starts with AIza)"></label>
+<div class="row"><button class="btn pri" id="saveKey">Save key</button><button class="btn" id="testKey">Test key</button><button class="btn" id="rmKey">Remove key</button><button class="btn" id="closeDlg" style="margin-left:auto">Close</button></div>
+<p class="hint" id="keyMsg"></p>
+<h2 style="font-size:15px;margin-top:18px">Put the app online to share links</h2>
+<p class="hint" style="margin:0 0 6px">Links open on other devices only when the app is online. It is free. Addresses travel inside each link and are never stored on the website.</p>
+<ol class="g">
+<li>Open <a href="https://app.netlify.com/drop" target="_blank" rel="noopener">app.netlify.com/drop</a> in Chrome or Edge.</li>
+<li>Drag the whole <b>AddressSorter</b> folder onto the page.</li>
+<li>Copy the web address it gives you (it ends in <b>.netlify.app</b>).</li>
+<li>Click <b>Claim</b> and sign up free. Without this the site expires.</li>
+<li>Paste the address below and press <b>Save address</b>.</li>
+</ol>
+<div class="row" style="flex-wrap:nowrap"><input type="text" id="base" placeholder="https://your-site.netlify.app"><button class="btn pri" id="saveBase">Save address</button></div>
+<h2 style="font-size:15px;margin-top:18px">How to get a Google key</h2>
+<ol class="g">
+<li>Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> and sign in with a Google account.</li>
+<li>Click the project menu at the top, choose <b>New project</b>, then <b>Create</b>.</li>
+<li>Open the menu (three lines) &gt; <b>Billing</b> and add a payment card. Google requires this, and a free monthly allowance applies.</li>
+<li>Open <b>APIs &amp; Services</b> &gt; <b>Library</b>, search <b>Geocoding API</b>, click it, then <b>Enable</b>.</li>
+<li>Open <b>APIs &amp; Services</b> &gt; <b>Credentials</b> &gt; <b>Create credentials</b> &gt; <b>API key</b>. Copy the key.</li>
+<li>Click <b>Edit API key</b>, under <b>API restrictions</b> pick <b>Geocoding API</b>, and save. Leave website restrictions on <b>None</b>.</li>
+<li>Paste the key above and press <b>Save key</b>.</li>
+</ol>
+</dialog>
+<div id="toast"></div>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
+<script src="lib/leaflet.js"></script>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const toast=(m,t=3500)=>{const e=$('#toast');e.textContent=m;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',t)};
+
+const IS_W=location.hash.startsWith('#d=');if(IS_W)document.body.classList.add('worker');let W=null;
+const saved=IS_W?{}:store.get('as.state',{});
+const S={items:saved.items||[],start:saved.start||null,mode:saved.mode||'driving',order:saved.order||'closest',key:IS_W?'':store.get('as.key',''),headers:[],rows:[],amode:'single',sorted:[],sel:null,people:saved.people||[],files:saved.files||{},base:IS_W?'':store.get('as.base',''),report:IS_W?'':store.get('as.report',''),tab:'sort'};
+const persist=()=>W?store.set('as.w.'+W.id,{done:Object.fromEntries(S.items.filter(i=>i.done).map(i=>[i.addr.toLowerCase(),1])),mode:S.mode,order:S.order}):IS_W?0:store.set('as.state',{items:S.items,start:S.start,mode:S.mode,order:S.order,people:S.people,files:S.files});
+
+/* ---------- file + column mapping ---------- */
+const FIELDS={single:[['address','Address'],['label','Name (optional)']],split:[['number','House / unit no.'],['street','Street'],['suburb','Suburb'],['state','State'],['postcode','Postcode'],['label','Name (optional)']]};
+const GUESS={number:/^(no\.?|number|house\s*(no\.?|number)?|unit|street\s*no\.?)$/i,address:/address/i,street:/street|addr/i,suburb:/suburb|city|town|locality/i,state:/^state|^st$/i,postcode:/post/i,label:/name|customer|client|title|label|job/i,lat:/^lat/i,lng:/^(lng|lon)/i};
+const FB={};let M={};
+S.defState=store.get('as.defState','VIC');
+const colL=n=>{let t='';while(n>0){const m=(n-1)%26;t=String.fromCharCode(65+m)+t;n=Math.floor((n-1)/26)}return t};
+const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open('addrsorter',1);r.onupgradeneeded=()=>r.result.createObjectStore('f');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const idbSet=async(k,v)=>{const d=await idb();return new Promise((res,rej)=>{const t=d.transaction('f','readwrite');t.objectStore('f').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})};
+const idbGet=async k=>{const d=await idb();return new Promise((res,rej)=>{const q=d.transaction('f').objectStore('f').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})};
+function readFile(f){
+  const r=new FileReader();
+  r.onload=e=>{try{
+    S.fname=f.name;S.buf=e.target.result;S.isX=/\.xlsx$/i.test(f.name);
+    S.wb=XLSX.read(S.buf,{type:'array',cellNF:true});S.sheets=S.wb.SheetNames;S.sheet=S.sheets[0];
+    loadSheet(true);
+  }catch(err){toast('Could not read that file: '+err.message)}};
+  r.readAsArrayBuffer(f);
+}
+function loadSheet(auto){
+  const ws=S.wb.Sheets[S.sheet];if(!ws||!ws['!ref'])return toast('That sheet is empty.');
+  const rg=XLSX.utils.decode_range(ws['!ref']);S.off=rg.s.r;S.c0=rg.s.c;
+  S.aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankrows:true,raw:false});
+  S.dmap={};S.nmap={};
+  for(const a in ws){if(a[0]==='!')continue;const c=ws[a],q=XLSX.utils.decode_cell(a),r=q.r-S.off,k=q.c-S.c0;
+    if(c.t==='n'&&typeof c.v==='number'&&c.z&&XLSX.SSF.is_date(c.z)){const d=XLSX.SSF.parse_date_code(c.v);
+      if(d&&d.y>=1990){const z2=n=>String(n).padStart(2,'0');S.dmap[r+'|'+k]=`${d.y}-${z2(d.m)}-${z2(d.d)}`;
+        if(c.z==='m/d/yy'&&S.aoa[r])S.aoa[r][k]=`${z2(d.d)}/${z2(d.m)}/${d.y}`}}
+    if(c.c&&c.c.length){const t=c.c.map(x=>String(x.t||'').trim()).filter(Boolean).join(' ');if(t)S.nmap[r+'|'+k]=t}}
+  if(auto)S.hdr=detectHdr();
+  buildRows();
+}
+function detectHdr(){
+  let best=0,bi=-1;
+  S.aoa.slice(0,20).forEach((row,i)=>{const hit=new Set();row.forEach(c=>{const t=String(c).trim();if(!t)return;for(const k in GUESS)if(k!=='lat'&&k!=='lng'&&GUESS[k].test(t))hit.add(k)});if(hit.size>best){best=hit.size;bi=i}});
+  if(bi<0)bi=S.aoa.findIndex(r=>r.some(c=>String(c).trim()));
+  return Math.max(bi,0)+S.off+1;
+}
+function buildRows(){
+  const hi=S.hdr-1-S.off,hc=S.aoa[hi]||[],used={},names=[];
+  hc.forEach((c,j)=>{let n=String(c).trim();if(n){if(used[n])n=n+' ('+(++used[n])+')';else used[n]=1}names[j]=n||null});
+  const rows=[];
+  S.aoa.forEach((row,i)=>{if(i<=hi)return;if(!row.some(c=>String(c).trim()))return;rows.push({i,row})});
+  const width=Math.max(hc.length,...rows.map(x=>x.row.length));
+  for(let j=0;j<width;j++)if(!names[j]&&rows.some(x=>String(x.row[j]??'').trim()))names[j]='Column '+colL(j+S.c0+1);
+  S.headers=names.filter(Boolean);
+  S.rows=rows.map(({i,row})=>{const o={};names.forEach((n,j)=>{if(n)o[n]=row[j]??''});Object.defineProperty(o,'__r',{value:S.off+i+1});
+    const dts={},nt=[];names.forEach((n,j)=>{if(!n)return;const d=S.dmap[i+'|'+j];if(d)dts[n]=d;const t=S.nmap[i+'|'+j];if(t)nt.push(n+': '+t)});
+    Object.defineProperty(o,'__dt',{value:dts});Object.defineProperty(o,'__nt',{value:nt});return o});
+  $('#mapUI').style.display='block';
+  $('#mapInfo').textContent=S.rows.length?`${S.rows.length} rows with data found in "${S.fname}"${S.sheets.length>1?`, sheet "${S.sheet}"`:''}. Choose which column holds each detail.`:'No rows found under that heading row. Change the heading row number.';
+  if(S.headers.length)guessMap();
+  drawFields();
+}
+function guessMap(){
+  const sig='as.map.'+S.headers.join('|'),sv=store.get(sig,null);S.sig=sig;
+  M=sv?.map||{};S.amode=sv?.amode||(S.headers.some(h=>GUESS.address.test(h))?'single':'split');
+  if(!sv)for(const k in GUESS){const h=S.headers.find(h=>GUESS[k].test(h)&&!Object.values(M).includes(h));if(h)M[k]=h}
+}
+function drawFields(){
+  $$('#addrMode button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.amode));
+  const opt=sel=>'<option value="">None</option>'+S.headers.map(h=>`<option ${h===sel?'selected':''}>${esc(h)}</option>`).join('');
+  const top=(S.sheets&&S.sheets.length>1?`<label class="f">Sheet<select id="shSel">${S.sheets.map(n=>`<option ${n===S.sheet?'selected':''}>${esc(n)}</option>`).join('')}</select></label>`:'')+`<label class="f">Headings on row<input type="number" id="hdrRow" min="1" value="${S.hdr}"></label>`;
+  const tail=S.amode==='split'&&!M.state?`<label class="f">Add state<select id="defState">${['','VIC','NSW','QLD','SA','WA','TAS','NT','ACT'].map(v=>`<option value="${v}" ${v===S.defState?'selected':''}>${v||'None'}</option>`).join('')}</select></label><p class="hint" style="margin:-2px 0 0">Your file has no State column, so this is added to each address.</p>`:'';
+  $('#fields').innerHTML=top+[...FIELDS[S.amode],['lat','Latitude (if you have it)'],['lng','Longitude (if you have it)']].map(([k,l])=>`<label class="f">${l}<select data-k="${k}">${opt(M[k])}</select></label>`).join('')+tail;
+  $$('#fields select[data-k]').forEach(x=>x.onchange=()=>{M[x.dataset.k]=x.value;if(x.dataset.k==='state')drawFields();else prev()});
+  if($('#shSel'))$('#shSel').onchange=e=>{S.sheet=e.target.value;loadSheet(true)};
+  $('#hdrRow').onchange=e=>{S.hdr=Math.max(1,parseInt(e.target.value)||1);buildRows()};
+  if($('#defState'))$('#defState').onchange=e=>{S.defState=e.target.value;store.set('as.defState',S.defState);prev()};
+  prev();
+}
+function rowAddr(r){
+  const g=k=>String(r[M[k]]??'').trim();
+  if(S.amode==='single')return g('address');
+  const st=g('state')||(M.state?'':S.defState);
+  return [[g('number'),g('street')].filter(Boolean).join(' '),g('suburb'),[st,g('postcode')].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+}
+function prev(){const r=S.rows&&S.rows[0];$('#prev').textContent=r?'Example: '+(rowAddr(r)||'(empty)'):''}
+function loadItems(){
+  const need=S.amode==='single'?M.address:(M.street||M.suburb);
+  if(!need)return toast('Choose the address column first.');
+  store.set(S.sig,{map:M,amode:S.amode});
+  const fid=S.isX?`${S.fname}|${S.sheet}`:null;
+  if(fid)S.items=S.items.filter(i=>!(i.src&&i.src.f===fid));
+  let nid=S.items.reduce((m,i)=>Math.max(m,i.id),-1)+1,n=0,skipped=0;
+  S.rows.forEach(r=>{
+    const a=rowAddr(r),la=parseFloat(r[M.lat]),ln=parseFloat(r[M.lng]);
+    const has=S.amode==='single'?a:(String(r[M.street]||'').trim()||String(r[M.suburb]||'').trim());
+    if(!has&&isNaN(la)){skipped++;return}
+    S.items.push({id:nid++,label:String(r[M.label]||'').trim()||a.split(',')[0],addr:a,lat:isNaN(la)?null:la,lng:isNaN(ln)?null:ln,raw:r,done:false,...(Object.keys(r.__dt||{}).length?{dts:r.__dt}:{}),...(r.__nt&&r.__nt.length?{nt:r.__nt}:{}),...(fid?{src:{f:fid,r:r.__r}}:{})});n++;
+  });
+  if(fid){S.files[fid]={name:S.fname,sheet:S.sheet,hdr:S.hdr};FB[fid]=S.buf;idbSet(fid,S.buf).catch(()=>{})}
+  S.sorted=[];persist();$('#mapUI').style.display='none';render();
+  toast(`${n} addresses loaded${skipped?`. ${skipped} rows without an address stay exactly as they are`:''}.`,5000);
+}
+
+/* ---------- geocoding ---------- */
+const gcache=store.get('as.geo',{});
+const ABBR={st:'Street',rd:'Road',ave:'Avenue',av:'Avenue',dr:'Drive',ct:'Court',cres:'Crescent',cre:'Crescent',pl:'Place',pde:'Parade',blvd:'Boulevard',bvd:'Boulevard',cl:'Close',tce:'Terrace',hwy:'Highway',cct:'Circuit',gr:'Grove',esp:'Esplanade',ln:'Lane',wy:'Way',pkwy:'Parkway',sq:'Square',cir:'Circuit'};
+const expand=a=>{const i=a.indexOf(','),h=i<0?a:a.slice(0,i),t=i<0?'':a.slice(i),w=h.split(' ');const k=w[w.length-1].toLowerCase().replace(/\.$/,'');if(w.length>1&&ABBR[k])w[w.length-1]=ABBR[k];return w.join(' ')+t};
+const simplify=a=>a.replace(/^(unit|u|apt|apartment|flat|suite|shop|level|lvl|lot)\s*[\w-]+\s*[,\/ ]\s*/i,'').replace(/^[\w-]+\/(?=\d)/,'');
+async function fj(u,ms=15000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(u,{signal:c.signal});if(!r.ok)throw new Error('HTTP '+r.status);return await r.json()}finally{clearTimeout(t)}}
+async function geocodeOne(addr){
+  const k=addr.toLowerCase();if(gcache[k])return gcache[k];
+  for(const q of [...new Set([addr,expand(addr),simplify(addr),expand(simplify(addr))])]){
+    let p=null;
+    if(S.key){
+      const j=await fj(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&components=country:AU&region=au&key=${encodeURIComponent(S.key)}`);
+      if(j.status==='OK'){const l=j.results[0].geometry.location;p={lat:l.lat,lng:l.lng}}
+      else if(j.status!=='ZERO_RESULTS')throw new Error('Google: '+(j.error_message||j.status));
+    }else{
+      try{
+        const j=await fj(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=au&q=${encodeURIComponent(q)}`);
+        if(j[0])p={lat:+j[0].lat,lng:+j[0].lon};
+        await sleep(1100);
+      }catch{
+        const j=await fj(`https://photon.komoot.io/api/?limit=1&bbox=112,-44,154,-9&q=${encodeURIComponent(q)}`);
+        const c=j.features&&j.features[0];if(c)p={lat:c.geometry.coordinates[1],lng:c.geometry.coordinates[0]};
+        await sleep(300);
+      }
+    }
+    if(p){gcache[k]=p;store.set('as.geo',gcache);return p}
+  }
+  return null;
+}
+async function geocodeAll(){
+  const todo=S.items.filter(i=>i.lat==null);todo.forEach(i=>i.failed=false);let n=0;
+  for(const it of todo){
+    prog(`Finding locations ${++n} of ${todo.length}`,n/todo.length*100);
+    try{const p=await geocodeOne(it.addr);if(p){it.lat=p.lat;it.lng=p.lng}else it.failed=true}
+    catch(e){if(/Google/.test(e.message)){toast(e.message+'. Check your key in Settings.',6000);throw e}it.failed=true}
+    if(n%10==0)persist();
+  }
+  persist();
+}
+
+/* ---------- routing ---------- */
+const hav=(a,b)=>{const R=6371,r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dg=r(b.lng-a.lng),h=Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dg/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+const est=it=>{const km=hav(S.start,it)*1.3;return{km,min:km/(S.mode==='walking'?5:40)*60,est:true}};
+async function route(){
+  const need=S.items.filter(i=>i.lat!=null&&!(i.d&&i.d[S.mode]));
+  const pr=S.mode==='walking'?['routed-foot','foot']:['routed-car','driving'];let n=0;
+  for(let k=0;k<need.length;k+=80){
+    const ch=need.slice(k,k+80);$('#status').textContent=`Measuring ${S.mode==='walking'?'walking':'driving'} routes`;
+    try{
+      const co=[S.start,...ch].map(p=>p.lng+','+p.lat).join(';');
+      const r=await fj(`https://routing.openstreetmap.de/${pr[0]}/table/v1/${pr[1]}/${co}?sources=0&annotations=duration,distance`);
+      ch.forEach((it,j)=>{const m=r.durations[0][j+1],d=r.distances[0][j+1];(it.d??={})[S.mode]=m==null?est(it):{km:d/1000,min:m/60}});
+    }catch{ch.forEach(it=>(it.d??={})[S.mode]=est(it));S.estimated=true}
+  }
+}
+function arrange(){
+  const ok=S.items.filter(i=>i.lat!=null),bad=S.items.filter(i=>i.lat==null);
+  if(S.order==='closest')ok.sort((a,b)=>a.d[S.mode].km-b.d[S.mode].km);
+  else{const left=[...ok],out=[];let cur=S.start;while(left.length){let bi=0,bd=1e9;left.forEach((x,i)=>{const d=hav(cur,x);if(d<bd){bd=d;bi=i}});cur=left.splice(bi,1)[0];out.push(cur)}ok.splice(0,ok.length,...out)}
+  S.sorted=[...ok,...bad];
+}
+
+/* ---------- run ---------- */
+async function run(){
+  if(!S.items.length)return toast('Load your addresses first.');
+  if(!S.start){const t=$('#start').value.trim();if(!t)return toast('Enter a start address or press Use my location.');
+    $('#status').textContent='Finding your start point';
+    try{const p=await geocodeOne(t);if(!p)return toast('Start address not found. Add the suburb and state.');S.start={...p,text:t}}catch(e){return toast('Start lookup failed: '+e.message)}}
+  $('#go').disabled=true;$('#barWrap').style.display='block';S.estimated=false;
+  try{await geocodeAll();await route();arrange();render();
+    const f=S.items.filter(i=>i.lat==null).length;
+    $('#status').textContent=(f?`${f} address${f>1?'es':''} not found. Use Fix to correct them. `:'Done. ')+(S.estimated?'Routing service was unreachable, so some distances are straight-line estimates (marked ~).':'');
+  }catch(e){$('#status').textContent='Stopped: '+e.message}
+  $('#go').disabled=false;$('#barWrap').style.display='none';persist();
+}
+
+/* ---------- render ---------- */
+const fmt=d=>{if(!d)return['',''];const t=d.min<60?Math.round(d.min)+' min':Math.floor(d.min/60)+' h '+Math.round(d.min%60)+' min';return[(d.est?'~':'')+(d.km<10?d.km.toFixed(1):Math.round(d.km))+' km',t]};
+const navUrl=it=>`https://www.google.com/maps/dir/?api=1&destination=${it.lat},${it.lng}&travelmode=${S.mode}`;
+let map,layer,tileErr=0;
+const esri=(p,o={})=>L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${p}/MapServer/tile/{z}/{y}/{x}`,{maxZoom:19,attribution:'Tiles &copy; Esri',...o});
+function addTiles(){
+  const base={'Street':esri('World_Street_Map'),'Light':esri('Canvas/World_Light_Gray_Base',{maxNativeZoom:16}),'Satellite':esri('World_Imagery')};
+  Object.values(base).forEach(l=>l.on('tileerror',()=>{if(++tileErr===6)toast('The map background could not load, but your pins are still shown.',6000)}));
+  base.Street.addTo(map);L.control.layers(base,null,{position:'topright'}).addTo(map);
+}
+const moreDetails=it=>{const ks=Object.keys(it.raw||{}).filter(k=>String(it.raw[k]).trim());return ks.length>2?`<details class="more"><summary>All details</summary><dl>${ks.map(k=>`<dt>${esc(k)}</dt><dd>${esc(it.raw[k])}</dd>`).join('')}</dl></details>`:''};
+const itemBody=it=>{const f=info(it);return`<div class="nm">${esc(it.label)}${f.nat?` <span class="tag">${esc(f.nat)}</span>`:''}</div><div class="ad">${esc(it.addr)}</div>${f.comment?`<div class="cm">${esc(f.comment)}</div>`:''}${f.lv?`<div class="lv">Last visit <b>${fmtD(f.lv)}</b> <span>${ago(f.lv)}</span></div>`:''}${W?moreDetails(it):''}`};
+function render(nf){
+  const q=$('#q').value.toLowerCase(),hd=$('#hideDone').checked;
+  const list=(S.sorted.length?S.sorted:S.items);
+  $('#count').textContent=S.items.length?`${S.items.length} addresses saved`:'';
+  $('#empty').style.display=list.length?'none':'block';
+  $('#prog').textContent=W?`${S.items.filter(i=>i.done).length} of ${S.items.length} stops done`:'';
+  let rank=0;
+  $('#list').innerHTML=list.map(it=>{
+    const sorted=S.sorted.length&&it.lat!=null;if(sorted)rank++;
+    if((hd&&it.done)||(q&&!(`${it.label} ${it.addr} ${Object.values(it.raw||{}).join(' ')}`).toLowerCase().includes(q)))return'';
+    const [d,t]=fmt(it.d&&it.d[S.mode]);
+    return`<li class="it ${it.done?'done':''} ${it.failed&&it.lat==null?'fail':''} ${S.sel===it.id?'sel':''}" data-id="${it.id}">
+     <span class="rk">${it.lat==null&&S.sorted.length?'!':sorted?rank:'·'}</span>
+     <div>${itemBody(it)}</div>
+     <div class="ds">${it.lat!=null&&d?`<strong>${d}</strong>${t}`:it.failed?'Not found':''}</div>
+     <div class="go"><input type="checkbox" data-act="done" ${it.done?'checked':''} title="Mark done">${it.lat!=null?`<a href="${navUrl(it)}" target="_blank" rel="noopener" data-act="nav">Navigate</a>`:`<button class="x" data-act="fix">Fix</button>`}</div></li>`}).join('');
+  drawMap(nf);
+  if(!nf&&!W&&S.tab==='dist')renderAdmin();
+}
+function drawMap(nf){try{drawMap2(nf)}catch(e){toast('Map error: '+e.message,6000)}}
+function drawMap2(nf){
+  if(!window.L)return;
+  if(!map){map=L.map('map',{zoomControl:true}).setView([-37.8136,144.9631],10);addTiles();layer=L.layerGroup().addTo(map)}
+  map.invalidateSize();layer.clearLayers();const pts=[];
+  if(S.tab==='dist'&&!W){S.items.forEach(it=>{if(it.lat==null)return;const pi=S.people.findIndex(p=>p.id===it.who);pts.push([it.lat,it.lng]);
+    L.marker([it.lat,it.lng],{icon:L.divIcon({className:'',html:`<div class="pin" style="background:${pcol(pi)}">${pi<0?'·':esc(S.people[pi].name[0].toUpperCase())}</div>`,iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layer).bindTooltip(esc(it.label)+(pi<0?' (unassigned)':' → '+esc(S.people[pi].name)))});
+    if(pts.length&&!nf)map.fitBounds(pts,{padding:[40,40],maxZoom:15});return}
+  const pin=(it,n,cls)=>L.marker([it.lat,it.lng],{icon:L.divIcon({className:'',html:`<div class="pin ${cls}">${n}</div>`,iconSize:[26,26],iconAnchor:[13,13]})});
+  if(S.start){pin(S.start,'S','start').addTo(layer).bindTooltip('Start');pts.push([S.start.lat,S.start.lng])}
+  let r=0;const line=S.start?[[S.start.lat,S.start.lng]]:[];
+  S.sorted.forEach(it=>{if(it.lat==null)return;r++;pts.push([it.lat,it.lng]);line.push([it.lat,it.lng]);
+    pin(it,r,it.done?'done':'').addTo(layer).bindTooltip(esc(it.label)+'<br>'+esc(it.addr)).on('click',()=>{S.sel=it.id;$('#list').querySelector(`[data-id="${it.id}"]`)?.scrollIntoView({block:'center'})})});
+  const sel=S.start&&S.sorted.find(i=>i.id===S.sel&&i.lat!=null);
+  if(sel)L.polyline([[S.start.lat,S.start.lng],[sel.lat,sel.lng]],{color:'#E8A317',weight:3}).addTo(layer);
+  if(S.order==='route'&&line.length>1)L.polyline(line,{color:'#0A7A5A',weight:3,opacity:.7,dashArray:'6 6'}).addTo(layer);
+  if(pts.length&&!nf)map.fitBounds(pts,{padding:[40,40],maxZoom:15});
+}
+
+/* ---------- events ---------- */
+const drop=$('#drop');
+drop.onclick=()=>$('#file').click();
+$('#file').onchange=e=>e.target.files[0]&&readFile(e.target.files[0]);
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('on')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('on')}));
+drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&readFile(e.dataTransfer.files[0]));
+$$('#addrMode button').forEach(b=>b.onclick=()=>{S.amode=b.dataset.m;drawFields()});
+$('#load').onclick=loadItems;
+$$('#srcSeg button').forEach(b=>b.onclick=()=>{const p=b.dataset.s==='paste';$$('#srcSeg button').forEach(x=>x.classList.toggle('on',x===b));$('#pasteBox').style.display=p?'block':'none';$('#drop').style.display=p?'none':'block';if(p)$('#mapUI').style.display='none'});
+$('#addPaste').onclick=()=>{
+  const lines=$('#paste').value.split(/\r?\n/).map(l=>l.replace(/\t+/g,', ').replace(/\s+/g,' ').trim()).filter(Boolean);
+  if(!lines.length)return toast('Paste at least one address first.');
+  const have=new Set(S.items.map(i=>i.addr.toLowerCase()));let id=S.items.reduce((m,i)=>Math.max(m,i.id),-1)+1,add=0,dup=0;
+  lines.forEach(a=>{if(have.has(a.toLowerCase())){dup++;return}have.add(a.toLowerCase());S.items.push({id:id++,label:a.split(',')[0],addr:a,lat:null,lng:null,raw:{Address:a},done:false});add++});
+  S.sorted=[];persist();render();$('#paste').value='';
+  $('#pasteInfo').textContent=`${add} added${dup?`, ${dup} duplicate${dup>1?'s':''} skipped`:''}.`;
+  toast(`${add} addresses added. Set your start point, then press Sort addresses.`);
+};
+$('#tpl').onclick=()=>{const ws=XLSX.utils.aoa_to_sheet([['Name','Street','Suburb','State','Postcode'],['Example Cafe','1 Example St','Melbourne','VIC','3000']]);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Addresses');XLSX.writeFile(wb,'address-template.xlsx')};
+$$('#modeSeg button').forEach(b=>b.onclick=()=>{S.mode=b.dataset.v;seg();if(S.sorted.length)run()});
+$$('#orderSeg button').forEach(b=>b.onclick=()=>{S.order=b.dataset.v;seg();if(S.sorted.length){arrange();render();persist()}});
+function seg(){$$('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.mode));$$('#orderSeg button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.order));
+  $('#orderHint').textContent=S.order==='closest'?'Closest first ranks every address by travel distance from your start.':'Best route chains the stops so each one is near the previous one, starting from your start.'}
+$('#go').onclick=run;
+$('#start').oninput=()=>{S.start=null;if(S.items.some(i=>i.d)){S.items.forEach(i=>delete i.d)}};
+function locate(auto){
+  if(!navigator.geolocation)return toast('This browser cannot share location. Type your address instead.');
+  navigator.geolocation.getCurrentPosition(p=>{S.start={lat:p.coords.latitude,lng:p.coords.longitude,text:'My location'};S.items.forEach(i=>delete i.d);$('#start').value='My location';persist();
+    if(auto)run();else{toast('Location found.');drawMap()}},
+   ()=>toast('Location was blocked or unavailable. Allow location access, or type your address instead.',6000),{enableHighAccuracy:true,timeout:15000});
+}
+$('#gps').onclick=()=>locate(!!W);
+$('#list').onclick=e=>{
+  if(e.target.closest('details'))return;
+  const li=e.target.closest('.it');if(!li)return;const it=S.items.find(i=>i.id==li.dataset.id),a=e.target.dataset.act;
+  if(a==='done'){it.done=e.target.checked;persist();render(true);return}
+  if(a==='nav')return;
+  if(a==='fix'){const v=prompt('Correct the address:',it.addr);if(v){it.addr=v.trim();it.failed=false;it.lat=it.lng=null;persist();run()}return}
+  S.sel=it.id;if(it.lat!=null&&map){map.setView([it.lat,it.lng],16)}render(true);
+};
+$('#q').oninput=()=>render(true);$('#hideDone').onchange=()=>render(true);
+const ordered=()=>S.sorted.filter(i=>i.lat!=null);
+/*FAITHFUL_START*/
+async function buildFaithful(EJ,bytes,meta,items,extra){
+  const A=new EJ.Workbook(),B=new EJ.Workbook();
+  await A.xlsx.load(bytes);await B.xlsx.load(bytes);
+  const sA=A.getWorksheet(meta.sheet),sB=B.getWorksheet(meta.sheet);
+  if(!sA||!sB)throw new Error('Sheet "'+meta.sheet+'" was not found in the saved file');
+  const ST=EJ.ValueType,maxC=Math.max(sA.columnCount,sA.actualColumnCount||0);
+  const L=n=>{let t='';while(n>0){const m=(n-1)%26;t=String.fromCharCode(65+m)+t;n=Math.floor((n-1)/26)}return t};
+  const shift=(f,d)=>String(f).replace(/(?<![A-Za-z_.])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\d(A-Za-z_])/g,(m,a,c,b,r)=>b?m:a+c+(+r+d));
+  const clone=o=>JSON.parse(JSON.stringify(o||{}));
+  const orig=items.slice().sort((x,y)=>x.src.r-y.src.r),slots=orig.map(i=>i.src.r);
+  const maxS=Math.max(maxC,...orig.map(i=>sA.getRow(i.src.r).cellCount||0));
+  const serial={};
+  if(orig.length>=3)for(let c=1;c<=maxC;c++){
+    const re=new RegExp('^\\$?'+L(c)+'\\$?\\d+\\+1$');let ok=true,first=null,nf=0;
+    orig.forEach((it,k)=>{const cell=sA.getCell(it.src.r,c);
+      if(cell.type===ST.Formula&&re.test(String(cell.formula).replace(/\s/g,''))){nf++;if(k===0)ok=false}
+      else if(cell.type===ST.Number){if(k===0)first=cell.value;else if(cell.value!==first+k)ok=false}
+      else ok=false});
+    if(ok&&nf>0&&first!=null)serial[c]=first;
+  }
+  items.forEach((it,k)=>{
+    const sr=it.src.r,dr=slots[k],R0=sA.getRow(sr),R1=sB.getRow(dr);
+    if(R0.height)R1.height=R0.height;R1.hidden=R0.hidden;
+    for(let c=1;c<=maxS;c++){
+      const sc=R0.getCell(c),dc=R1.getCell(c);
+      if(sc.type===ST.Merge)continue;
+      if(serial[c]!==undefined)dc.value=k===0?serial[c]:{formula:L(c)+slots[k-1]+'+1',result:serial[c]+k};
+      else if(sc.type===ST.Formula)dc.value={formula:shift(sc.formula,dr-sr),result:sc.result};
+      else dc.value=sc.value;
+      dc.style=clone(sc.style);
+    }
+  });
+  if(extra){
+    const base=maxC+2;
+    extra.titles.forEach((t,j)=>{const h=sB.getCell(meta.hdr,base+j);h.value=t;h.style=clone(sB.getCell(meta.hdr,maxC).style);sB.getColumn(base+j).width=16});
+    items.forEach((it,k)=>extra.rows(it).forEach((v,j)=>{const d=sB.getCell(slots[k],base+j);d.value=v;d.style=clone(sA.getCell(it.src.r,maxC).style)}));
+  }
+  B.calcProperties=Object.assign(B.calcProperties||{},{fullCalcOnLoad:true});
+  return B.xlsx.writeBuffer();
+}
+/*FAITHFUL_END*/
+const dl=(blob,name)=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},2000)};
+function simpleExport(items){
+  let r=0;
+  const out=items.map(it=>{const d=it.d&&it.d[S.mode];return{Rank:it.lat!=null?++r:'',...it.raw,'Distance (km)':d?+d.km.toFixed(2):'','Time (min)':d?Math.round(d.min):'',Latitude:it.lat??'',Longitude:it.lng??'',Done:it.done?'Yes':'','Assigned to':pname(it)}});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(out),'Sorted');XLSX.writeFile(wb,'sorted-addresses.xlsx');
+}
+async function exportFile(fid,items){
+  const meta=S.files[fid];let bytes=FB[fid];
+  if(!bytes){try{bytes=await idbGet(fid)}catch{}}
+  if(!bytes){toast(`Upload "${meta.name}" again once to export it in its original layout. A simple export was made instead.`,8000);return simpleExport(items)}
+  let r=0;const rank=new Map(items.map(i=>[i,i.lat!=null?++r:'']));
+  const extra=$('#xtra').checked?{titles:['Rank','Distance (km)','Time (min)','Done','Assigned to'],rows:it=>{const d=it.d&&it.d[S.mode];return[rank.get(it),d?+d.km.toFixed(2):'',d?Math.round(d.min):'',it.done?'Yes':'',pname(it)]}}:null;
+  const buf=await buildFaithful(ExcelJS,bytes,meta,items,extra);
+  dl(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),meta.name.replace(/\.xlsx$/i,'')+' - sorted.xlsx');
+}
+$('#xlsx').onclick=async()=>{
+  if(!S.sorted.length)return toast('Sort your addresses first.');
+  const g={};S.sorted.forEach(it=>{const f=it.src&&S.files[it.src.f]?it.src.f:'_';(g[f]=g[f]||[]).push(it)});
+  $('#xlsx').disabled=true;
+  try{for(const f in g){if(f==='_')simpleExport(g[f]);else await exportFile(f,g[f]);await sleep(500)}
+    toast('Exported. Every detail moved together with its address.',4500)}
+  catch(e){toast('Export failed: '+e.message,8000)}
+  $('#xlsx').disabled=false;
+};
+$('#copy').onclick=async()=>{const t=ordered().map((it,i)=>`${i+1}. ${it.label} - ${it.addr}`).join('\n');if(!t)return toast('Sort your addresses first.');try{await navigator.clipboard.writeText(t);toast('List copied.')}catch{toast('Copy was blocked by the browser.')}};
+$('#gmap').onclick=()=>{
+  const st=ordered().filter(i=>!i.done).slice(0,10);if(!st.length)return toast('Nothing to route yet.');
+  const p=i=>i.lat+','+i.lng,last=st[st.length-1],via=st.slice(0,-1).map(p).join('|');
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${p(last)}${via?'&waypoints='+encodeURIComponent(via):''}&travelmode=${S.mode}`,'_blank');
+  if(ordered().filter(i=>!i.done).length>10)toast('Google Maps allows 10 stops per link, so the first 10 were sent.',5000);
+};
+$('#print').onclick=()=>window.print();
+$('#clear').onclick=()=>{if(confirm('Remove all saved addresses from this browser?')){S.items=[];S.sorted=[];S.files={};persist();render()}};
+
+/* settings */
+const dlg=$('#dlg');
+$('#setBtn').onclick=()=>{$('#key').value=S.key;$('#base').value=S.base;$('#keyMsg').textContent=S.key?'A Google key is saved.':'No key saved. Using free OpenStreetMap data.';dlg.showModal()};
+$('#closeDlg').onclick=()=>dlg.close();
+$('#saveKey').onclick=()=>{S.key=$('#key').value.trim();store.set('as.key',S.key);$('#keyMsg').textContent='Saved.'};
+$('#rmKey').onclick=()=>{S.key='';$('#key').value='';store.set('as.key','');$('#keyMsg').textContent='Key removed. Using free OpenStreetMap data.'};
+$('#testKey').onclick=async()=>{const k=$('#key').value.trim();if(!k)return $('#keyMsg').textContent='Paste a key first.';
+  try{const j=await fj(`https://maps.googleapis.com/maps/api/geocode/json?address=Sydney+NSW&key=${encodeURIComponent(k)}`);
+    $('#keyMsg').textContent=j.status==='OK'?'Key works.':'Key rejected: '+(j.error_message||j.status)}catch(e){$('#keyMsg').textContent='Could not reach Google. Check your internet connection.'}};
+
+addEventListener('resize',()=>map&&map.invalidateSize());
+$('#saveBase').onclick=()=>{let v=$('#base').value.trim().replace(/#.*$/,'');if(v&&!/^https?:\/\//i.test(v))v='https://'+v;S.base=v;$('#base').value=v;store.set('as.base',v);$('#keyMsg').textContent=v?'App address saved. Your links will use it.':'App address cleared.';if(S.tab==='dist')renderLinks()};
+
+/* ---------- distribute (admin) ---------- */
+const PAL=['#0B7A5C','#2563EB','#D9480F','#9333EA','#0891B2','#BE185D','#65A30D','#B45309'];
+const pcol=i=>i<0?'#8a9892':PAL[i%PAL.length];
+const pname=it=>(S.people.find(p=>p.id===it.who)||{}).name||'';
+const prog=(m,p)=>{$('#status').textContent=m;$('#adStat').textContent=m;$('#bar').style.width=p+'%';$('#bar2').style.width=p+'%'};
+const b64u=u=>{let t='';for(let i=0;i<u.length;i+=8192)t+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(t).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const unb64u=t=>Uint8Array.from(atob(t.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+async function pack(o){const raw=new TextEncoder().encode(JSON.stringify(o));
+  try{if(window.CompressionStream)return 'z'+b64u(new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()))}catch{}
+  return 'p'+b64u(raw)}
+async function unpack(t){const b=unb64u(t.slice(1));
+  if(t[0]==='z')return JSON.parse(new TextDecoder().decode(await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()));
+  return JSON.parse(new TextDecoder().decode(b))}
+const baseUrl=()=>(S.base||location.href).replace(/#.*$/,'');
+
+/* ---------- dates, column roles, per-address info ---------- */
+const MON={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+const mkD=(y,m,d)=>{if(!(m>=1&&m<=12&&d>=1&&d<=31&&y>=1990&&y<=2100))return null;const t=new Date(Date.UTC(y,m-1,d));return t.getUTCMonth()===m-1?`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`:null};
+const y2=y=>y<100?(y<70?2000+y:1900+y):y;
+function parseText(s){
+  s=String(s??'').trim();if(!s||s.length>40)return null;let m;
+  if(m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ].*)?$/))return mkD(+m[1],+m[2],+m[3]);
+  if(m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})(?:\s.*)?$/))return mkD(y2(+m[3]),+m[2],+m[1]);
+  if(m=s.match(/^(\d{1,2})(?:st|nd|rd|th)?[ \-\/]([A-Za-z]{3,9})\.?,?[ \-\/]*(\d{2,4})$/)){const mo=MON[m[2].slice(0,3).toLowerCase()];return mo?mkD(y2(+m[3]),mo,+m[1]):null}
+  if(m=s.match(/^([A-Za-z]{3,9})\.? (\d{1,2})(?:st|nd|rd|th)?,? (\d{2,4})$/)){const mo=MON[m[1].slice(0,3).toLowerCase()];return mo?mkD(y2(+m[3]),mo,+m[2]):null}
+  return null}
+const fmtD=iso=>{const [y,m,d]=iso.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})};
+const ago=iso=>{const [y,m,d]=iso.split('-').map(Number),n=new Date(),days=Math.round((new Date(n.getFullYear(),n.getMonth(),n.getDate())-new Date(y,m-1,d))/864e5);
+  if(days<0)return'upcoming';if(days===0)return'today';if(days===1)return'yesterday';if(days<14)return days+' days ago';if(days<60)return Math.round(days/7)+' weeks ago';if(days<730)return Math.round(days/30.4)+' months ago';return Math.round(days/365)+' years ago'};
+let IC=new WeakMap();
+const RE={zone:/zone/i,comment:/comment|note|remark/i,nat:/^nat\.?$|^nat\b|national/i};
+S.cols=IS_W?{}:store.get('as.cols',{});
+const role=(keys,k)=>{const v=S.cols[k];if(v==='-')return'';if(v&&keys.includes(v))return v;return keys.find(h=>RE[k].test(h))||''};
+const skipN=()=>{const n=parseInt(S.cols.skip);return isNaN(n)||n<0?3:n};
+const dateHdr=h=>/\d/.test(h)&&!!parseText(h);
+/* comment, latest visit date (after Zone, before the last 3 columns) and Nat for one address */
+function info(it){
+  if(it.x)return it.x;
+  let r=IC.get(it);if(r)return r;
+  const raw=it.raw||{},keys=Object.keys(raw),g=h=>h?String(raw[h]??'').trim():'';
+  const zone=role(keys,'zone'),cm=role(keys,'comment'),nat=role(keys,'nat'),zi=zone?keys.indexOf(zone):-1,end=keys.length-skipN();
+  let lv='';
+  keys.forEach((h,i)=>{
+    if(h===cm||h===nat||h===zone)return;
+    if(zi>=0?!(i>zi&&i<end):i>=end)return;
+    let d=(it.dts&&it.dts[h])||(zi>=0?parseText(raw[h]):null);
+    if(!d&&g(h)&&dateHdr(h))d=parseText(h);
+    if(d&&d>lv)lv=d});
+  const comment=[g(cm),...(it.nt||[]).map(t=>'Note - '+t)].filter(Boolean).join('\n');
+  r={comment,lv,nat:g(nat),zone:g(zone)};IC.set(it,r);return r;
+}
+const cell=(it,h)=>String((it.raw||{})[h]??'').trim();
+const allH=()=>{const h=[],seen=new Set();S.items.forEach(it=>Object.keys(it.raw||{}).forEach(k=>{if(!seen.has(k)){seen.add(k);h.push(k)}}));return h};
+const normPhone=s=>{let d=String(s||'').replace(/\D/g,'').replace(/^610/,'61');if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='61'+d.slice(1);else if(d.length===9&&d[0]==='4')d='61'+d;return d.length>=8?d:''};
+const openUrl=u=>{const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()};
+async function copyRich(html,text){
+  try{if(window.ClipboardItem&&html){await navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([text],{type:'text/plain'})})]);return true}}catch{}
+  try{await navigator.clipboard.writeText(text);return true}catch{}
+  try{const t=document.createElement('textarea');t.value=text;t.style.cssText='position:fixed;opacity:0';document.body.appendChild(t);t.select();const ok=document.execCommand('copy');t.remove();return ok}catch{}
+  return false}
+const isMobile=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Mac/.test(navigator.platform));
+
+/* ---------- table state ---------- */
+const TB=Object.assign({s1:'list',d1:1,s2:'',d2:1,hide:[]},IS_W?{}:store.get('as.tbl',{}));
+const TF={q:'',who:'',lv:'',from:'',to:'',fc:{}};
+let SEL=new Set(),PSEL=new Set(),VIS=[],lastIdx=-1,TCOLS=[],TMODE={};
+const saveTb=()=>store.set('as.tbl',{s1:TB.s1,d1:TB.d1,s2:TB.s2,d2:TB.d2,hide:TB.hide});
+function skey(it,k,ord,lst){
+  if(k==='ord')return ord.get(it);
+  if(k==='list')return lst.has(it)?lst.get(it):1e6+ord.get(it);
+  if(k==='name')return it.label.toLowerCase();
+  if(k==='addr')return it.addr.toLowerCase();
+  if(k==='who')return pname(it).toLowerCase();
+  if(k==='lv')return info(it).lv;
+  const h=k.slice(2),v=cell(it,h);if(!v)return'';
+  const d=(it.dts&&it.dts[h])||parseText(v);if(d)return d;
+  const n=Number(v.replace(/,/g,''));return isNaN(n)?v.toLowerCase():n;
+}
+function cmpFn(){
+  const ord=new Map(S.items.map((it,i)=>[it,i])),lst=new Map(S.sorted.map((it,i)=>[it,i]));
+  const ks=[[TB.s1,TB.d1],[TB.s2,TB.d2]].filter(x=>x[0]),K=new Map(S.items.map(it=>[it,ks.map(([k])=>skey(it,k,ord,lst))]));
+  return(a,b)=>{const A=K.get(a),B=K.get(b);
+    for(let j=0;j<ks.length;j++){const x=A[j],y=B[j];if(x===''&&y==='')continue;if(x==='')return 1;if(y==='')return-1;if(x===y)continue;
+      const c=(typeof x==='number'&&typeof y==='number')?x-y:String(x).localeCompare(String(y),undefined,{numeric:true});
+      if(c)return c*ks[j][1]}
+    return ord.get(a)-ord.get(b)}}
+function visible(){
+  const q=TF.q.trim().toLowerCase();
+  return S.items.filter(it=>{
+    const f=info(it);
+    if(q&&!(`${it.label} ${it.addr} ${f.comment} ${Object.values(it.raw||{}).join(' ')}`).toLowerCase().includes(q))return false;
+    const has=S.people.some(p=>p.id===it.who);
+    if(TF.who==='_none'){if(has)return false}else if(TF.who==='_any'){if(!has)return false}else if(TF.who&&it.who!==TF.who)return false;
+    if(TF.lv==='never'&&f.lv)return false;if(TF.lv==='has'&&!f.lv)return false;
+    if(TF.from||TF.to){if(!f.lv)return false;if(TF.from&&f.lv<TF.from)return false;if(TF.to&&f.lv>TF.to)return false}
+    for(const h in TF.fc){const v=TF.fc[h];if(!v)continue;const lv=v.toLowerCase();
+      if(h==='#name'){if(!`${it.label} ${f.comment}`.toLowerCase().includes(lv))return false;continue}
+      if(h==='#addr'){if(!it.addr.toLowerCase().includes(lv))return false;continue}
+      const c=cell(it,h).toLowerCase();
+      if(TMODE[h]==='sel'){if(v==='__blank__'?c!=='':c!==lv)return false}else if(!c.includes(lv))return false}
+    return true}).sort(cmpFn());
+}
+function fillSort(H){
+  const opts=[['list','Sorted order (from My list)'],['ord','File order'],['name','Name'],['addr','Address'],['lv','Last visit date'],['who','Assigned to'],...H.map(h=>['c:'+h,h])];
+  const o=(sel,skip)=>opts.filter(x=>!skip||x[0]!=='list'&&x[0]!=='ord').map(([k,l])=>`<option value="${esc(k)}" ${k===sel?'selected':''}>${esc(l)}</option>`).join('');
+  $('#s1').innerHTML=o(TB.s1);$('#s2').innerHTML='<option value="">(none)</option>'+o(TB.s2,1);
+  $('#d1').textContent=TB.d1===1?'Ascending':'Descending';$('#d2').textContent=TB.d2===1?'Ascending':'Descending';
+}
+function drawTable(){
+  const H=allH().filter(h=>S.items.some(it=>cell(it,h)));
+  TCOLS=H.filter(h=>!TB.hide.includes(h));fillSort(H);fillSelects();
+  $('#colList').innerHTML=H.length?H.map(h=>`<label class="row" style="gap:8px;margin:4px 0;flex-wrap:nowrap"><input type="checkbox" data-col="${esc(h)}" ${TB.hide.includes(h)?'':'checked'}>${esc(h)}</label>`).join(''):'<span class="hint">No columns yet.</span>';
+  drawRoles(H);
+  if(!S.items.length){$('#assign').innerHTML='<div class="empty">No addresses yet. Add them in My list first.</div>';$('#tinfo').textContent='';return}
+  TMODE={};const VAL={};
+  H.forEach(h=>{const vs=new Set();for(const it of S.items){const v=cell(it,h);if(v){vs.add(v);if(vs.size>15)break}}
+    TMODE[h]=vs.size>1&&vs.size<=15?'sel':'txt';VAL[h]=[...vs].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}))});
+  const arrow=k=>TB.s1===k?(TB.d1===1?' ▲':' ▼'):TB.s2===k?(TB.d2===1?' △':' ▽'):'';
+  const txt=(k,ph)=>`<input class="fi" data-fc="${esc(k)}" value="${esc(TF.fc[k]||'')}" placeholder="${ph}">`;
+  const selF=h=>`<select class="fi" data-fc="${esc(h)}"><option value="">All</option><option value="__blank__" ${TF.fc[h]==='__blank__'?'selected':''}>(blank)</option>${VAL[h].map(v=>`<option ${TF.fc[h]===v?'selected':''} value="${esc(v)}">${esc(v)}</option>`).join('')}</select>`;
+  const whoF=`<select class="fi" data-who="1"><option value="">All</option><option value="_none" ${TF.who==='_none'?'selected':''}>Unassigned</option><option value="_any" ${TF.who==='_any'?'selected':''}>Any person</option>${S.people.map(p=>`<option value="${p.id}" ${TF.who===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select>`;
+  const th=(k,l,f,cls='')=>`<th class="${cls}"><div class="hl" data-sort="${esc(k)}">${esc(l)}${arrow(k)}</div>${f||''}</th>`;
+  $('#assign').innerHTML=`<div class="tw"><table class="dt"><thead><tr><th class="ck"><input type="checkbox" id="selAll" title="Select all shown"></th><th class="n">#</th>${th('name','Name',txt('#name','Filter'),'nmc')}${th('addr','Address',txt('#addr','Filter'),'adc')}${th('who','Assigned to',whoF)}${th('lv','Last visit','')}${TCOLS.map(h=>th('c:'+h,h,TMODE[h]==='sel'?selF(h):txt(h,'Filter'))).join('')}</tr></thead><tbody id="tbody"></tbody></table></div>`;
+  drawBody();
+}
+function drawBody(){
+  const ids=new Set(S.items.map(i=>i.id));SEL.forEach(id=>{if(!ids.has(id))SEL.delete(id)});
+  VIS=visible();
+  const po=S.people.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''),base='<option value="">Unassigned</option>',OP={'':base+po};
+  S.people.forEach(p=>OP[p.id]=base+po.replace(`value="${p.id}"`,`value="${p.id}" selected`));
+  const tb=$('#tbody');if(!tb)return;
+  tb.innerHTML=VIS.map((it,i)=>{
+    const f=info(it),pi=S.people.findIndex(p=>p.id===it.who),sel=SEL.has(it.id);
+    return`<tr data-id="${it.id}" class="${sel?'sel ':''}${pi>=0?'as':''}" style="--pc:${pcol(pi)}"><td class="ck"><input type="checkbox" data-sel="${it.id}" ${sel?'checked':''}></td><td class="n">${i+1}</td>
+<td class="nmc"><div class="nm">${esc(it.label)}${f.nat?` <span class="tag">${esc(f.nat)}</span>`:''}</div>${f.comment?`<div class="cm">${esc(f.comment)}</div>`:''}${f.lv?`<div class="lv">Last visit <b>${fmtD(f.lv)}</b> <span>${ago(f.lv)}</span></div>`:''}</td>
+<td class="adc">${esc(it.addr)}${it.lat==null?' <span class="warn">(needs location)</span>':''}</td>
+<td><select class="as" data-aid="${it.id}">${OP[it.who]||OP['']}</select></td><td>${f.lv?fmtD(f.lv):''}</td>
+${TCOLS.map(h=>{const v=cell(it,h);return`<td title="${esc(v)}">${esc(v)}</td>`}).join('')}</tr>`}).join('');
+  const n=S.items.length;$('#tinfo').textContent=VIS.length===n?`${n} addresses`:`Showing ${VIS.length} of ${n} addresses`;
+  updSel();
+}
+function updSel(){
+  const vs=VIS.filter(i=>SEL.has(i.id)).length,all=$('#selAll');
+  if(all){all.checked=VIS.length>0&&vs===VIS.length;all.indeterminate=vs>0&&vs<VIS.length}
+  $('#selCount').textContent=`${SEL.size} selected`+(SEL.size>vs?` (${SEL.size-vs} hidden by filters)`:'');
+}
+function fillSelects(){
+  const po=S.people.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  const keep=(el,html)=>{const v=el.value;el.innerHTML=html;if([...el.options].some(o=>o.value===v))el.value=v};
+  keep($('#asTo'),'<option value="">Choose a person...</option>'+po);
+  keep($('#selWho'),'<option value="">Select those assigned to...</option>'+po);
+}
+function drawRoles(H){
+  const opt=(k,auto)=>`<option value="">Auto${auto?' ('+esc(auto)+')':''}</option><option value="-" ${S.cols[k]==='-'?'selected':''}>None</option>`+H.map(h=>`<option ${S.cols[k]===h?'selected':''}>${esc(h)}</option>`).join('');
+  const keys=H,z=role(keys,'zone'),c=role(keys,'comment'),n=role(keys,'nat');
+  $('#roleBox').innerHTML=`<label class="f">Zone column<select data-role="zone">${opt('zone',z)}</select></label><label class="f">Comments column<select data-role="comment">${opt('comment',c)}</select></label><label class="f">Nat column<select data-role="nat">${opt('nat',n)}</select></label><label class="f">Ignore last columns<input type="number" min="0" max="20" data-role="skip" value="${skipN()}"></label><p class="hint">Visit dates are the columns after Zone and before the last ${skipN()} columns. The latest date is shown under each name.</p>`;
+}
+function afterAssign(){persist();renderPeople();drawBody();renderLinks();drawMap(true)}
+
+/* ---------- people ---------- */
+function stat(){const n=S.items.length,l=S.items.filter(i=>i.lat!=null).length,a=S.items.filter(i=>S.people.some(p=>p.id===i.who)).length;$('#adStat').textContent=n?`${n} addresses, ${l} located, ${a} assigned.`:'Add addresses in step 1 first.'}
+function renderAdmin(){renderPeople();drawTable();renderLinks();drawMap(true)}
+function renderPeople(){
+  PSEL.forEach(id=>{if(!S.people.some(p=>p.id===id))PSEL.delete(id)});
+  $('#people').innerHTML=S.people.length?S.people.map((p,i)=>`<span class="chip"><input type="checkbox" data-ps="${p.id}" ${PSEL.has(p.id)?'checked':''} title="Tick to use or remove several people at once"><i class="dot" style="background:${pcol(i)}"></i><span data-ed="${p.id}" title="Click to edit name or WhatsApp number" style="cursor:pointer">${esc(p.name)}${p.phone?` <small class="hint" style="margin:0">${esc(p.phone)}</small>`:''}</span> <b>${S.items.filter(x=>x.who===p.id).length}</b><button data-rm="${p.id}" title="Remove ${esc(p.name)}">&times;</button></span>`).join(''):'<span class="hint">No people yet.</span>';
+  $('#pbar').style.display=S.people.length?'flex':'none';
+  updPeopleBar();fillSelects();stat();
+}
+function updPeopleBar(){
+  $('#pRmSel').textContent=`Remove ticked (${PSEL.size})`;$('#pRmSel').disabled=!PSEL.size;
+  $('#spHint').textContent=PSEL.size?`Using only the ${PSEL.size} ticked people.`:'Using everyone (tick people above to use only some).';
+}
+function parsePeople(t){
+  const out=[];
+  t.split(/\r?\n|;/).map(l=>l.trim()).filter(Boolean).forEach(l=>{
+    const parts=l.split(/\t|,|\s+-\s+|\|/).map(x=>x.trim()).filter(Boolean);let phone='';const names=[];
+    parts.forEach(x=>{if(/^\+?[\d\s()\-]{8,}$/.test(x)&&x.replace(/\D/g,'').length>=8)phone=x;else names.push(x)});
+    if(!names.length)return;
+    if(!phone&&names.length>1)names.forEach(n=>out.push({name:n,phone:''}));else out.push({name:names.join(' '),phone})});
+  return out}
+function addPeople(list){
+  const have=new Set(S.people.map(p=>p.name.toLowerCase()));let add=0,dup=0;
+  list.forEach(p=>{if(have.has(p.name.toLowerCase())){dup++;return}have.add(p.name.toLowerCase());S.people.push({id:'p'+Math.random().toString(36).slice(2,8),name:p.name,phone:p.phone||''});add++});
+  persist();renderAdmin();return{add,dup}}
+function removePeople(ids){const set=new Set(ids);S.items.forEach(i=>{if(set.has(i.who))delete i.who});S.people=S.people.filter(p=>!set.has(p.id));ids.forEach(id=>PSEL.delete(id));persist();renderAdmin()}
+const addPerson=()=>{const n=$('#pName').value.trim();if(!n)return;addPeople([{name:n,phone:$('#pPhone').value.trim()}]);$('#pName').value='';$('#pPhone').value=''};
+$('#pAdd').onclick=addPerson;$('#pName').onkeydown=e=>{if(e.key==='Enter')addPerson()};$('#pPhone').onkeydown=e=>{if(e.key==='Enter')addPerson()};
+$('#pBulkBtn').onclick=()=>{const b=$('#bulkBox');b.hidden=!b.hidden;if(!b.hidden)$('#pBulk').focus()};
+$('#pBulkAdd').onclick=()=>{const l=parsePeople($('#pBulk').value);if(!l.length)return toast('Type or paste at least one name first.');const r=addPeople(l);$('#pBulk').value='';$('#pBulkInfo').textContent=`${r.add} added${r.dup?`, ${r.dup} already existed`:''}.`;toast(`${r.add} people added.`)};
+$('#people').onclick=e=>{
+  const rm=e.target.dataset.rm,ed=e.target.closest('[data-ed]');
+  if(rm){removePeople([rm]);return}
+  if(ed){const p=S.people.find(x=>x.id===ed.dataset.ed);if(!p)return;const n=prompt('Name:',p.name);if(n===null)return;const ph=prompt('WhatsApp number (optional, e.g. 0412 345 678):',p.phone||'');if(n.trim())p.name=n.trim();if(ph!==null)p.phone=ph.trim();persist();renderAdmin()}};
+$('#people').onchange=e=>{const id=e.target.dataset.ps;if(!id)return;e.target.checked?PSEL.add(id):PSEL.delete(id);updPeopleBar()};
+$('#pAll').onclick=()=>{S.people.forEach(p=>PSEL.add(p.id));$$('#people [data-ps]').forEach(x=>x.checked=true);updPeopleBar()};
+$('#pNone').onclick=()=>{PSEL.clear();$$('#people [data-ps]').forEach(x=>x.checked=false);updPeopleBar()};
+$('#pRmSel').onclick=()=>{if(!PSEL.size)return;if(confirm(`Remove ${PSEL.size} people? Their addresses become unassigned.`))removePeople([...PSEL])};
+$('#pRmAll').onclick=()=>{if(S.people.length&&confirm(`Remove all ${S.people.length} people? All addresses become unassigned.`))removePeople(S.people.map(p=>p.id))};
+
+/* ---------- links ---------- */
+const linkFor=async(p,ok)=>{
+  const H=allH().filter(h=>ok.some(i=>cell(i,h)));
+  return baseUrl()+'#d='+await pack({v:2,id:p.id,n:p.name,m:S.mode,r:normPhone(S.report),h:H,i:ok.map(i=>{const f=info(i);return[i.label,i.addr,+i.lat.toFixed(5),+i.lng.toFixed(5),f.comment,f.lv,f.nat,H.map(h=>cell(i,h))]})})};
+let LK={},LKN={},lkTok=0;
+async function renderLinks(){
+  const tok=++lkTok;LK={};LKN={};
+  let h=location.protocol==='file:'&&!S.base?'<div class="note">These links only open on this computer. To send them to other people, put the app online first. <button class="btn sm" id="howOnline">Show me how</button></div>':'';
+  for(const p of S.people){const its=S.items.filter(i=>i.who===p.id),ok=its.filter(i=>i.lat!=null),miss=its.length-ok.length;
+    if(!ok.length){h+=`<div class="lk"><div><b>${esc(p.name)}</b><div class="ad">${its.length?`${miss} addresses still need locations. Press Find locations.`:'No addresses assigned yet.'}</div></div></div>`;continue}
+    const url=await linkFor(p,ok);if(tok!==lkTok)return;LK[p.id]=url;LKN[p.id]=ok.length;
+    const kb=Math.max(1,Math.round(url.length/1024));
+    h+=`<div class="lk"><div><a class="plink" href="${esc(url)}" target="_blank" rel="noopener" title="Open ${esc(p.name)}'s stops">${esc(p.name)}</a><div class="ad">${ok.length} stops${miss?`, ${miss} need locations`:''}${p.phone?`, WhatsApp ${esc(p.phone)}`:''}${url.length>60000?`. <b style="color:var(--bad)">Too big (${kb} KB) for chat apps. Give this person fewer stops.</b>`:url.length>2000?` (${kb} KB link, sent by copy and paste)`:''}</div></div><div class="row"><button class="btn sm pri" data-c="copy" data-p="${p.id}">Copy link</button><button class="btn sm" data-c="wa" data-p="${p.id}">WhatsApp</button><button class="btn sm" data-c="mail" data-p="${p.id}">Email</button><button class="btn sm" data-c="open" data-p="${p.id}">Preview</button></div></div>`}
+  $('#links').innerHTML=h||'<div class="empty">Add people to create their links.</div>';
+}
+const shareMsg=(p,u,n)=>`Hi ${p.name}, here are your ${n} stops. Open this link on your phone and allow location access:\n${u}`;
+const linkHtml=(p,u)=>`<a href="${esc(u)}">${esc(p.name)}</a>`;
+function waSend(p){
+  const u=LK[p.id],n=LKN[p.id];if(!u)return toast('This person has no link yet.');
+  if(location.protocol==='file:'&&!S.base&&!confirm('This link only works on this computer because the app is not online yet (see Settings). Send it anyway?'))return;
+  const ph=normPhone(p.phone),full=shareMsg(p,u,n),url=`https://wa.me/${ph}?text=${encodeURIComponent(full)}`;
+  if(url.length<=2000)return openUrl(url);
+  /* long link: WhatsApp's web address limit would cut it, so use the phone share sheet or copy and paste */
+  copyRich(linkHtml(p,u),u);
+  if(isMobile()&&navigator.share){navigator.share({text:full}).catch(()=>{});return}
+  openUrl(`https://wa.me/${ph}?text=${encodeURIComponent(`Hi ${p.name}, here are your ${n} stops. Open the link in my next message on your phone and allow location access.`)}`);
+  toast('Link copied. In WhatsApp, paste it (Ctrl+V) and press send.',10000);
+}
+function mailSend(p){
+  const u=LK[p.id],n=LKN[p.id];if(!u)return;
+  const m='mailto:?subject='+encodeURIComponent('Your stops')+'&body='+encodeURIComponent(shareMsg(p,u,n));
+  if(m.length<=1800){location.href=m;return}
+  copyRich(linkHtml(p,u),u);
+  location.href='mailto:?subject='+encodeURIComponent('Your stops')+'&body='+encodeURIComponent(`Hi ${p.name}, here are your ${n} stops. Open the link below on your phone and allow location access:\n\n`);
+  toast('The link is too long to fill in by itself. It is copied. Paste it into the email.',10000);
+}
+$('#links').onclick=async e=>{
+  if(e.target.id==='howOnline')return $('#setBtn').click();
+  const c=e.target.dataset.c,p=S.people.find(x=>x.id===e.target.dataset.p);if(!c||!p)return;const u=LK[p.id];
+  if(c==='copy'){const ok=await copyRich(linkHtml(p,u),u);ok?toast('Link copied for '+p.name+'. Pasted into an email or document it shows as just their name.'):prompt('Copy this link:',u)}
+  if(c==='wa')waSend(p);
+  if(c==='mail')mailSend(p);
+  if(c==='open')openUrl(u);
+};
+$('#copyAll').onclick=async()=>{const ps=S.people.filter(p=>LK[p.id]);if(!ps.length)return toast('No links yet.');
+  const ok=await copyRich('<ul>'+ps.map(p=>`<li>${linkHtml(p,LK[p.id])}</li>`).join('')+'</ul>',ps.map(p=>`${p.name}: ${LK[p.id]}`).join('\n\n'));toast(ok?'All links copied.':'Copy was blocked by the browser.')};
+
+/* ---------- dividing ---------- */
+function divideArea(pts,P,balance){
+  const k=Math.min(P.length,pts.length);let c=[{lat:pts[0].lat,lng:pts[0].lng}];
+  while(c.length<k){const d=pts.map(p=>Math.min(...c.map(q=>hav(p,q)))**2);let r=Math.random()*d.reduce((x,y)=>x+y,0),i=0;while(r>d[i]&&i<d.length-1){r-=d[i];i++}c.push({lat:pts[i].lat,lng:pts[i].lng})}
+  const a=[],asg=()=>pts.forEach((p,i)=>{let b=0,bd=1e9;c.forEach((q,j)=>{const d=hav(p,q);if(d<bd){bd=d;b=j}});a[i]=b});
+  for(let t=0;t<15;t++){asg();c=c.map((q,j)=>{const m=pts.filter((_,i)=>a[i]===j);return m.length?{lat:m.reduce((x,p)=>x+p.lat,0)/m.length,lng:m.reduce((x,p)=>x+p.lng,0)/m.length}:q})}
+  asg();
+  if(balance){const cap=Math.ceil(pts.length/k);let g=pts.length*k;
+    while(g--){const sz=c.map((_,j)=>a.filter(x=>x===j).length),o=sz.findIndex(n=>n>cap);if(o<0)break;let best=null;
+      pts.forEach((p,i)=>{if(a[i]!==o)return;c.forEach((q,j)=>{if(j===o||sz[j]>=cap)return;const d=hav(p,q)-hav(p,c[o]);if(!best||d<best.d)best={i,j,d}})});
+      if(!best)break;a[best.i]=best.j}}
+  pts.forEach((p,i)=>p.who=P[a[i]].id);
+}
+function divide(){
+  const P=S.people,pts=S.items.filter(i=>i.lat!=null);
+  if(!P.length)return toast('Add at least one person first.');
+  if(!pts.length)return toast('Press Find locations first.');
+  divideArea(pts,P,$('#bal').checked);persist();renderAdmin();toast('Addresses divided by area. You can still change any of them.');
+}
+const selItems=()=>{const cmp=cmpFn();return S.items.filter(i=>SEL.has(i.id)).sort(cmp)};
+const usePeople=()=>{const P=PSEL.size?S.people.filter(p=>PSEL.has(p.id)):S.people;return P};
+function spread(){
+  const items=selItems(),P=usePeople(),mode=$('#spMode').value;
+  if(!items.length)return toast('Select some addresses in the table first.');
+  if(!P.length)return toast('Add at least one person first.');
+  if(mode==='blocks'){const k=P.length,n=items.length;let idx=0;P.forEach((p,j)=>{const sz=Math.floor(n/k)+(j<n%k?1:0);items.slice(idx,idx+sz).forEach(i=>i.who=p.id);idx+=sz})}
+  else if(mode==='rr')items.forEach((i,j)=>i.who=P[j%P.length].id);
+  else{const pts=items.filter(i=>i.lat!=null);if(!pts.length)return toast('Press Find locations first. Area needs locations.');divideArea(pts,P,$('#bal').checked);
+    if(pts.length<items.length)toast(`${items.length-pts.length} selected addresses have no location yet, so they were left as they were.`,6000)}
+  afterAssign();toast(`${items.length} addresses shared between ${P.length} ${P.length===1?'person':'people'}.`);
+}
+
+/* table events */
+const dbn=(f,ms=180)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f(...a),ms)}};
+const redraw=dbn(()=>drawBody());
+$('#assign').onclick=e=>{
+  const hl=e.target.closest('[data-sort]');
+  if(hl){const k=hl.dataset.sort;if(TB.s1===k)TB.d1*=-1;else{TB.s1=k;TB.d1=1}if(TB.s2===k)TB.s2='';saveTb();drawTable();return}
+  if(e.target.id==='selAll'){const on=e.target.checked;VIS.forEach(i=>on?SEL.add(i.id):SEL.delete(i.id));drawBody();return}
+  const sid=e.target.dataset.sel;
+  if(sid!==undefined){const id=+sid,idx=VIS.findIndex(i=>i.id===id),on=e.target.checked;
+    if(e.shiftKey&&lastIdx>=0){const[a,b]=[Math.min(lastIdx,idx),Math.max(lastIdx,idx)];for(let k=a;k<=b;k++)on?SEL.add(VIS[k].id):SEL.delete(VIS[k].id);drawBody()}
+    else{on?SEL.add(id):SEL.delete(id);e.target.closest('tr').classList.toggle('sel',on);updSel()}
+    lastIdx=idx}
+};
+$('#assign').oninput=e=>{
+  if(e.target.dataset.fc!==undefined){TF.fc[e.target.dataset.fc]=e.target.value;redraw()}
+  else if(e.target.dataset.who){TF.who=e.target.value;drawBody()}};
+$('#assign').onchange=e=>{
+  const it=S.items.find(i=>i.id==e.target.dataset.aid);if(!it)return;
+  if(e.target.value)it.who=e.target.value;else delete it.who;
+  const tr=e.target.closest('tr'),pi=S.people.findIndex(p=>p.id===it.who);tr.classList.toggle('as',pi>=0);tr.style.setProperty('--pc',pcol(pi));
+  persist();renderPeople();renderLinks();drawMap(true)};
+$('#aq').oninput=e=>{TF.q=e.target.value;redraw()};
+$('#alv').onchange=e=>{TF.lv=e.target.value;drawBody()};
+$('#afrom').onchange=e=>{TF.from=e.target.value;drawBody()};$('#ato').onchange=e=>{TF.to=e.target.value;drawBody()};
+$('#tclear').onclick=()=>{TF.q=TF.who=TF.lv=TF.from=TF.to='';TF.fc={};$('#aq').value='';$('#alv').value='';$('#afrom').value='';$('#ato').value='';drawTable()};
+$('#s1').onchange=e=>{TB.s1=e.target.value;saveTb();drawTable()};$('#s2').onchange=e=>{TB.s2=e.target.value;saveTb();drawTable()};
+$('#d1').onclick=()=>{TB.d1*=-1;saveTb();drawTable()};$('#d2').onclick=()=>{TB.d2*=-1;saveTb();drawTable()};
+$('#colList').onchange=e=>{const h=e.target.dataset.col;if(h===undefined)return;TB.hide=TB.hide.filter(x=>x!==h);if(!e.target.checked)TB.hide.push(h);saveTb();drawTable();$('#colPick').open=true};
+$('#roleBox').onchange=e=>{const k=e.target.dataset.role;if(!k)return;S.cols[k]=e.target.value;store.set('as.cols',S.cols);IC=new WeakMap();drawTable();renderLinks();$('#roles').open=true};
+$('#selAllBtn').onclick=()=>{VIS.forEach(i=>SEL.add(i.id));drawBody()};
+$('#selNone').onclick=()=>{SEL.clear();drawBody()};
+$('#selInv').onclick=()=>{VIS.forEach(i=>SEL.has(i.id)?SEL.delete(i.id):SEL.add(i.id));drawBody()};
+$('#selUn').onclick=()=>{VIS.forEach(i=>{if(!S.people.some(p=>p.id===i.who))SEL.add(i.id)});drawBody()};
+$('#selFirst').onclick=()=>{const n=Math.max(1,parseInt($('#selN').value)||1);SEL.clear();VIS.slice(0,n).forEach(i=>SEL.add(i.id));drawBody()};
+$('#selWho').onchange=e=>{const id=e.target.value;if(!id)return;VIS.forEach(i=>{if(i.who===id)SEL.add(i.id)});e.target.value='';drawBody()};
+$('#asBtn').onclick=()=>{const id=$('#asTo').value;if(!id)return toast('Choose a person first.');if(!SEL.size)return toast('Select some addresses first.');S.items.forEach(i=>{if(SEL.has(i.id))i.who=id});afterAssign();toast(`${SEL.size} addresses given to ${pname({who:id})}.`)};
+$('#unBtn').onclick=()=>{if(!SEL.size)return toast('Select some addresses first.');S.items.forEach(i=>{if(SEL.has(i.id))delete i.who});afterAssign()};
+$('#spBtn').onclick=spread;
+$('#expAssign').onclick=()=>{
+  if(!S.items.length)return toast('Nothing to export yet.');
+  const cmp=cmpFn(),items=[...S.items].sort(cmp);
+  const row=it=>{const f=info(it);return{'Assigned to':pname(it),'Last visit':f.lv?fmtD(f.lv):'',...(it.raw||{})}};
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(items.map(row)),'All');
+  const used=new Set(['All']);
+  S.people.forEach(p=>{const l=items.filter(i=>i.who===p.id);if(!l.length)return;let n=p.name.replace(/[\\\/?*\[\]:]/g,'').slice(0,28)||'Person',k=n,j=2;while(used.has(k.toLowerCase()))k=n+' '+j++;used.add(k.toLowerCase());
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(l.map(row)),k)});
+  XLSX.writeFile(wb,'assignments.xlsx');toast('Downloaded assignments.xlsx with one sheet per person.');
+};
+$$('#tabs button').forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;$$('#tabs button').forEach(x=>x.classList.toggle('on',x===b));const d=S.tab==='dist';
+  document.body.classList.toggle('dist',d);
+  $('#sec2').style.display=d?'none':'';$('#sec3').style.display=d?'none':'';$('#secAdmin').style.display=d?'':'none';if(d)renderAdmin();else drawMap()});
+$('#locAll').onclick=async()=>{if(!S.items.length)return toast('Add addresses first.');
+  $('#locAll').disabled=true;$('#barWrap2').style.display='block';
+  try{await geocodeAll();const f=S.items.filter(i=>i.lat==null).length;renderAdmin();$('#adStat').textContent=f?`${f} addresses were not found. Fix them in My list, then try again.`:'All addresses located.'}catch(e){$('#adStat').textContent='Stopped: '+e.message}
+  $('#locAll').disabled=false;$('#barWrap2').style.display='none'};
+$('#auto').onclick=divide;
+$('#report').value=S.report;$('#report').oninput=()=>{S.report=$('#report').value.replace(/\D/g,'');store.set('as.report',S.report);clearTimeout(S.rt);S.rt=setTimeout(renderLinks,400)};
+
+/* ---------- worker view (opened from a link) ---------- */
+async function initWorker(){
+  try{W=await unpack(location.hash.slice(3));if(!W.i||!W.id)throw 0}catch{$('#who').textContent='This link looks damaged. Ask for a new one.';return}
+  const ws=store.get('as.w.'+W.id,{}),dn=ws.done||{},H=W.h||[];
+  S.items=W.i.map((a,i)=>{
+    const raw={};(a[7]||[]).forEach((v,j)=>{if(H[j]&&String(v).trim())raw[H[j]]=v});
+    return{id:i,label:a[0],addr:a[1],lat:a[2],lng:a[3],raw:Object.keys(raw).length?raw:{Name:a[0],Address:a[1]},x:W.v>=2?{comment:a[4]||'',lv:a[5]||'',nat:a[6]||''}:null,done:!!dn[a[1].toLowerCase()]}});
+  S.mode=ws.mode||W.m||'driving';S.order=ws.order||'closest';S.start=null;seg();
+  $('#who').innerHTML=`Hi <b>${esc(W.n)}</b>, you have ${S.items.length} stops. Allow location access and they will be sorted from where you are.`;
+  document.title=W.n+' - my stops';render();locate(true);
+}
+$('#share').onclick=async()=>{
+  const left=(S.sorted.length?S.sorted:S.items).filter(i=>!i.done),d=S.items.length-left.length;
+  const t=`${W?W.n:'Progress'}: ${d} of ${S.items.length} stops done.`+(left.length?`\nStill to do:\n`+left.map(i=>'- '+i.addr).join('\n'):'\nAll done!');
+  const ph=normPhone(W&&W.r),url=`https://wa.me/${ph}?text=${encodeURIComponent(t)}`;
+  if(ph&&url.length<=2000)return openUrl(url);
+  if(navigator.share){try{await navigator.share({text:t});return}catch{}}
+  const ok=await copyRich('',t);
+  if(ph){openUrl(`https://wa.me/${ph}`);toast(ok?'Progress copied. Paste it into WhatsApp and send.':'Open WhatsApp and type your progress.',8000)}
+  else toast(ok?'Progress copied. Paste it into a message.':'Sharing is not available here.');
+};
+
+/* start-up */
+if(S.start)$('#start').value=S.start.text||'';
+seg();
+if(S.items.length&&S.start&&S.items.every(i=>i.failed||i.d&&i.d[S.mode])){arrange();}
+render();
+if(IS_W)initWorker();
+else{$('#tabsbar').style.display='none';}
+</script>
+</body>
+</html>
